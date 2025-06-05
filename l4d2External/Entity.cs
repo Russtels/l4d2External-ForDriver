@@ -12,7 +12,6 @@ namespace l4d2External
         
         public IntPtr address { get; set; }
 
-        public string name { get; set; }
         public int health { get; set; }
         public int teamNum { get; set; }
         public int lifeState { get; set; }
@@ -21,9 +20,11 @@ namespace l4d2External
         public Vector3 viewOffset { get; set; }
         public Vector3 abs { get; set; }
         public float magnitude { get; set; }
+        public string modelName { get; set; }
 
 
-        
+
+
     }
 
 }

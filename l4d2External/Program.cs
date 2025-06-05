@@ -62,7 +62,7 @@ namespace left4dead2Menu
         float aimbotTargetZOffset = 25.0f;  // Tu valor original de desplazamientoZ, ahora configurable
         bool drawFovCircle = true;
         float fovCircleVisualRadius = 100.0f;
-    
+
         Vector4 fovCircleColor = new Vector4(1, 1, 1, 0.5f); // Blanco semitransparente
         float aimbotSmoothness = 0.1f;      // Suavizado del Aimbot
 
@@ -279,11 +279,11 @@ namespace left4dead2Menu
                 }
                 else if (entity.teamNum == INFECTED_TEAM && entity.health > 0)
                 {
-                    if (entity.name != null && entity.name.Contains("inf")) // Añadida comprobación de nulidad para entity.name
+                    if (entity.modelName != null && entity.modelName.Contains("inf")) // Añadida comprobación de nulidad para entity.name
                     {
                         commonInfected.Add(entity);
                     }
-                    else if (entity.name != null) // Si no es "inf" y el nombre no es nulo
+                    else if (entity.modelName != null) // Si no es "inf" y el nombre no es nulo
                     {
                         // La comprobación if (entity.health > 0) aquí es redundante con la del 'else if' exterior
                         specialInfected.Add(entity);
@@ -317,16 +317,16 @@ namespace left4dead2Menu
             {
                 try
                 {
-                    entity.name = encoding.GetString(swed.ReadBytes(entityStringPointer, 10));
+                    entity.modelName = encoding.GetString(swed.ReadBytes(entityStringPointer, 10));
                 }
                 catch // Capturar posible error si el puntero/offset es incorrecto
                 {
-                    entity.name = "ERR_NAME";
+                    entity.modelName = "ERR_NAME";
                 }
             }
             else
             {
-                entity.name = "NULL_NAME_PTR";
+                entity.modelName = "NULL_NAME_PTR";
             }
         }
 
