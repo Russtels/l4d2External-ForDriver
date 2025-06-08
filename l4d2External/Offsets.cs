@@ -21,9 +21,14 @@ namespace l4d2External
         public int ViewOffset = 0xF4;
         public int Origin = 0x124;
         public int TeamNum = 0xE4;
-        public int ModelName = 0x60;
+        public int ModelName = 0x60; // Nota: El código original usa 0x10 para leer el nombre del modelo.
+                                     // Esta variable ModelName = 0x60 no se usa para leer la propiedad `Entity.modelName`.
 
 
-
+        // Sugerencias para añadir basadas en el código original:
+        // public int MaxEntities = 900;
+        // public int EntityLoopDistance = 0x10;
+        // public int EntityNamePointerOffset = 0x10; // Usado en Program.cs para leer modelName
+        // public int EntityNameStringLength = 10;    // Usado en Program.cs para leer modelName
     }
 }
