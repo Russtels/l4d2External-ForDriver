@@ -37,7 +37,7 @@ La herramienta está escrita en **C#** y utiliza la **API de Windows (WinAPI)** 
     ```bash
     git clone [https://github.com/Russtels/l4d2External.git](https://github.com/Russtels/l4d2External.git)
     ```
-2.  **Actualizar Offsets**: Busca los nuevos offsets y actualízalos en los archivos de cabecera correspondientes (ej. `offsets.h`).
+2.  **Actualizar Offsets**: Busca los nuevos offsets y actualízalos en los archivos de cabecera correspondientes (ej. `offsets.cs`).
 3.  **Compilar**: Abre el proyecto en Visual Studio y compila la solución en modo **Release** para la arquitectura **x86**.
 4.  **Ejecutar**:
     * Primero, inicia Left 4 Dead 2.
