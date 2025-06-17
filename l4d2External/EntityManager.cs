@@ -1,10 +1,11 @@
-﻿using System;
+﻿// EntityManager.cs (Tu versión funcional)
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using Swed32;
-using l4d2External; // Para Entity y Offsets
+using l4d2External;
 
 namespace left4dead2Menu
 {
@@ -14,12 +15,9 @@ namespace left4dead2Menu
         private readonly Offsets offsets;
         private readonly Encoding encoding;
 
-        // Constantes que podrían estar en Offsets.cs o GameConstants.cs
-        private const int MAX_ENTITIES = 900; // Límite del bucle de entidades
-        private const int ENTITY_LOOP_STRIDE = 0x10; // Distancia entre punteros de entidad en la lista
-        private const int ENTITY_MODELNAME_POINTER_OFFSET = 0x10; // Offset al puntero del nombre del modelo
-        private const int ENTITY_MODELNAME_STRING_LENGTH = 10; // Longitud a leer para el nombre del modelo
-
+        private const int MAX_ENTITIES = 900;
+        private const int ENTITY_LOOP_STRIDE = 0x10;
+        private const int FALLBACK_MODELNAME_POINTER_OFFSET = 0x10;
 
         public EntityManager(Swed swed, Offsets offsets, Encoding encoding)
         {
@@ -32,35 +30,32 @@ namespace left4dead2Menu
             Entity localPlayer,
             List<Entity> commonInfected,
             List<Entity> specialInfected,
+            List<Entity> bossInfected,
             List<Entity> survivors,
             IntPtr clientModuleBase)
         {
             commonInfected.Clear();
             specialInfected.Clear();
+            bossInfected.Clear();
             survivors.Clear();
 
             localPlayer.address = swed.ReadPointer(clientModuleBase, offsets.localplayer);
             if (localPlayer.address != IntPtr.Zero)
             {
-                // Actualizamos el jugador local. Su magnitud será 0 respecto a sí mismo (Vector3.Zero).
-                UpdateSingleEntityProperties(localPlayer, Vector3.Zero, isLocalPlayerUpdate: true);
+                UpdateSingleEntityProperties(localPlayer, Vector3.Zero, true);
             }
 
-            // Solo proceder si el jugador local es válido para calcular magnitudes relativas
             if (localPlayer.address != IntPtr.Zero)
             {
-                PopulateEntityLists(localPlayer, commonInfected, specialInfected, survivors, clientModuleBase);
+                PopulateEntityLists(localPlayer, commonInfected, specialInfected, bossInfected, survivors, clientModuleBase);
             }
-
-            // Ordenar listas como en el original
-            if (commonInfected.Count > 0) commonInfected.Sort((a, b) => a.magnitude.CompareTo(b.magnitude));
-            if (specialInfected.Count > 0) specialInfected.Sort((a, b) => a.magnitude.CompareTo(b.magnitude));
         }
 
         private void PopulateEntityLists(
             Entity localPlayer,
             List<Entity> commonInfected,
             List<Entity> specialInfected,
+            List<Entity> bossInfected,
             List<Entity> survivors,
             IntPtr clientModuleBase)
         {
@@ -78,24 +73,26 @@ namespace left4dead2Menu
 
                 UpdateSingleEntityProperties(currentEntity, localPlayer.origin);
 
-                if (currentEntity.lifeState != GameConstants.LIFE_STATE_ALIVE)
+                if (!string.IsNullOrEmpty(currentEntity.modelName) && !currentEntity.modelName.StartsWith("DEBUG"))
                 {
-                    continue;
-                }
+                    string model = currentEntity.modelName.ToLower();
 
-                if (currentEntity.teamNum == GameConstants.SURVIVOR_TEAM && currentEntity.health > 0)
-                {
-                    survivors.Add(currentEntity);
-                }
-                else if (currentEntity.teamNum == GameConstants.INFECTED_TEAM && currentEntity.health > 0)
-                {
-                    if (currentEntity.modelName != null && currentEntity.modelName.Contains("inf"))
+                    if (model.Contains("survivor"))
                     {
-                        commonInfected.Add(currentEntity);
+                        survivors.Add(currentEntity);
                     }
-                    else if (currentEntity.modelName != null) // No es "inf" y el nombre no es nulo
+                    else if (model.Contains("hulk") || model.Contains("witch"))
+                    {
+                        bossInfected.Add(currentEntity);
+                    }
+                    else if (model.Contains("charger") || model.Contains("jockey") || model.Contains("spitter") ||
+                             model.Contains("hunter") || model.Contains("smoker") || model.Contains("boomer"))
                     {
                         specialInfected.Add(currentEntity);
+                    }
+                    else if (model.Contains("infected/common"))
+                    {
+                        commonInfected.Add(currentEntity);
                     }
                 }
             }
@@ -104,51 +101,33 @@ namespace left4dead2Menu
         private void UpdateSingleEntityProperties(Entity entity, Vector3 localPlayerOriginForMagnitude, bool isLocalPlayerUpdate = false)
         {
             entity.lifeState = swed.ReadInt(entity.address, offsets.Lifestate);
-
-            // En el original, solo se leen más datos si lifeState ES 2 (LIFE_STATE_ALIVE).
-            // Para el jugador local, podríamos querer siempre los datos, pero seguiremos la lógica original.
-            if (entity.lifeState != GameConstants.LIFE_STATE_ALIVE)
-            {
-                // Si es el jugador local y no está "vivo" según este estado, aún podríamos querer su 'origin'
-                // pero otras propiedades como 'health' podrían no ser válidas o relevantes.
-                // El código original retornaba aquí para todos, así que lo mantenemos.
-                return;
-            }
-
+            entity.health = swed.ReadInt(entity.address, offsets.Health);
             entity.origin = swed.ReadVec(entity.address, offsets.Origin);
             entity.viewOffset = swed.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
+            entity.magnitude = MathUtils.CalculateMagnitude(entity.origin, localPlayerOriginForMagnitude);
 
-            entity.health = swed.ReadInt(entity.address, offsets.Health);
-            entity.teamNum = swed.ReadInt(entity.address, offsets.TeamNum);
-            entity.jumpflag = swed.ReadInt(entity.address, offsets.JumpFlag);
-
-            if (!isLocalPlayerUpdate) // La magnitud del jugador local respecto a sí mismo no es necesaria aquí.
+            entity.modelName = null;
+            try
             {
-                entity.magnitude = MathUtils.CalculateMagnitude(entity.origin, localPlayerOriginForMagnitude);
-            }
-            else
-            {
-                entity.magnitude = 0; // Magnitud del jugador local a sí mismo.
-            }
-
-            // Lectura del nombre del modelo, replicando la lógica original de Program.cs
-            var modelNamePtr = swed.ReadPointer(entity.address, ENTITY_MODELNAME_POINTER_OFFSET);
-            if (modelNamePtr != IntPtr.Zero)
-            {
-                try
+                IntPtr ptrToObject = swed.ReadPointer(entity.address, offsets.ModelName);
+                if (ptrToObject != IntPtr.Zero)
                 {
-                    entity.modelName = encoding.GetString(swed.ReadBytes(modelNamePtr, ENTITY_MODELNAME_STRING_LENGTH)).Split('\0')[0]; // Tomar hasta el primer nulo
+                    byte[] buffer = swed.ReadBytes(ptrToObject + 0x04, 120);
+                    entity.modelName = encoding.GetString(buffer).Split('\0')[0];
                 }
-                catch
+
+                if (string.IsNullOrEmpty(entity.modelName))
                 {
-                    entity.modelName = "ERR_NAME";
+                    IntPtr stringPtrFallback = swed.ReadPointer(entity.address, FALLBACK_MODELNAME_POINTER_OFFSET);
+                    if (stringPtrFallback != IntPtr.Zero)
+                    {
+                        byte[] buffer = swed.ReadBytes(stringPtrFallback, 120);
+                        entity.modelName = encoding.GetString(buffer).Split('\0')[0];
+                    }
                 }
             }
-            else
-            {
-                entity.modelName = "NULL_NAME_PTR";
-            }
+            catch { entity.modelName = "ERR_NAME"; }
         }
     }
 }

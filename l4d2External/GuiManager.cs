@@ -1,53 +1,74 @@
-﻿using ImGuiNET;
-using System.Numerics; // Para Vector2, Vector4
+﻿// GuiManager.cs (Modificado)
+using ImGuiNET;
+using System.Numerics;
 
 namespace left4dead2Menu
 {
     internal class GuiManager
     {
         public void DrawMenuControls(
-            ref bool enableAimbot,
-            ref float aimbotTargetZOffset,
-            ref bool drawFovCircle,
-            ref float fovCircleVisualRadius,
-            ref float aimbotSmoothness)
+            // Parámetros del Aimbot
+            ref bool enableAimbot, ref float aimbotTargetZOffset, ref bool drawFovCircle,
+            ref float fovCircleVisualRadius, ref float aimbotSmoothness, ref bool aimbotOnBosses,
+            ref bool aimbotOnSpecials, ref bool aimbotOnCommons, ref bool aimbotOnSurvivors,
+
+            // Parámetros del ESP
+            ref bool enableEsp, ref bool espOnBosses, ref Vector4 espColorBosses,
+            ref bool espOnSpecials, ref Vector4 espColorSpecials,
+            ref bool espOnCommons, ref Vector4 espColorCommons,
+            ref bool espOnSurvivors, ref Vector4 espColorSurvivors
+            )
         {
-            // Los Begin/End de la ventana principal se manejan en Program.Render
-            if (ImGui.BeginTabBar("tabs"))
+            if (ImGui.BeginTabBar("MainTabBar"))
             {
-                if (ImGui.BeginTabItem("general"))
+                if (ImGui.BeginTabItem("Aimbot"))
                 {
-                    ImGui.Checkbox("Aimbot", ref enableAimbot);
+                    ImGui.Checkbox("Habilitar Aimbot", ref enableAimbot);
                     if (enableAimbot)
                     {
-                        ImGui.SliderFloat("Desplazamiento Z Aimbot", ref aimbotTargetZOffset, -50.0f, 50.0f, "%.1f u");
-                        ImGui.Text("Positivo: más abajo, Negativo: más arriba del punto 'abs'");
-                        ImGui.Separator();
-                        ImGui.Text("Configuración FOV:");
+                        ImGui.SeparatorText("Configuración General");
+                        ImGui.SliderFloat("Desplazamiento Z", ref aimbotTargetZOffset, -50.0f, 50.0f, "%.1f u");
+                        ImGui.SliderFloat("Suavizado", ref aimbotSmoothness, 0.01f, 1.0f, "%.2f");
+
+                        ImGui.SeparatorText("Objetivos");
+                        ImGui.Checkbox("Jefes (Tank, Witch)", ref aimbotOnBosses);
+                        ImGui.Checkbox("Especiales", ref aimbotOnSpecials);
+                        ImGui.Checkbox("Comunes", ref aimbotOnCommons);
+                        ImGui.Checkbox("Supervivientes", ref aimbotOnSurvivors);
+
+                        ImGui.SeparatorText("Visualización");
                         ImGui.Checkbox("Dibujar Círculo FOV", ref drawFovCircle);
-                        ImGui.SliderFloat("Radio Círculo Visual", ref fovCircleVisualRadius, 10.0f, 300.0f, "%.0f px");
-                        ImGui.Separator();
-                        ImGui.Text("Configuración Suavizado:");
-                        ImGui.SliderFloat("Suavizado Aimbot", ref aimbotSmoothness, 0.01f, 1.0f, "%.2f");
+                        ImGui.SliderFloat("Radio del Círculo", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
                     }
                     ImGui.EndTabItem();
                 }
-
-                if (ImGui.BeginTabItem("esp"))
+                if (ImGui.BeginTabItem("ESP"))
                 {
-                    ImGui.Text("Opciones de ESP (a implementar)");
+                    ImGui.Checkbox("Habilitar ESP", ref enableEsp);
+                    if (enableEsp)
+                    {
+                        ImGui.SeparatorText("Visibilidad y Colores");
+
+                        ImGui.Checkbox("Jefes", ref espOnBosses);
+                        ImGui.SameLine();
+                        ImGui.ColorEdit4("##Color Jefes", ref espColorBosses, ImGuiColorEditFlags.NoInputs);
+
+                        ImGui.Checkbox("Especiales", ref espOnSpecials);
+                        ImGui.SameLine();
+                        ImGui.ColorEdit4("##Color Especiales", ref espColorSpecials, ImGuiColorEditFlags.NoInputs);
+
+                        ImGui.Checkbox("Comunes", ref espOnCommons);
+                        ImGui.SameLine();
+                        ImGui.ColorEdit4("##Color Comunes", ref espColorCommons, ImGuiColorEditFlags.NoInputs);
+
+                        ImGui.Checkbox("Supervivientes", ref espOnSurvivors);
+                        ImGui.SameLine();
+                        ImGui.ColorEdit4("##Color Supervivientes", ref espColorSurvivors, ImGuiColorEditFlags.NoInputs);
+                    }
                     ImGui.EndTabItem();
                 }
             }
             ImGui.EndTabBar();
-        }
-
-        public void DrawFovCircle(ImDrawListPtr drawList, Vector2 centerScreen, float radius, Vector4 color)
-        {
-            if (radius > 0)
-            {
-                drawList.AddCircle(centerScreen, radius, ImGui.GetColorU32(color), 32, 1.5f);
-            }
         }
     }
 }

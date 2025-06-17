@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Entity.cs (Corregido)
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -9,9 +10,7 @@ namespace l4d2External
 {
     internal class Entity
     {
-
         public IntPtr address { get; set; }
-
         public int health { get; set; }
         public int teamNum { get; set; }
         public int lifeState { get; set; }
@@ -20,6 +19,8 @@ namespace l4d2External
         public Vector3 viewOffset { get; set; }
         public Vector3 abs { get; set; }
         public float magnitude { get; set; }
-        public string modelName { get; set; }
+
+        // Solución para la advertencia CS8618: La propiedad ahora puede ser nula.
+        public string? modelName { get; set; }
     }
 }

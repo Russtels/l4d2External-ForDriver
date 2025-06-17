@@ -8,7 +8,7 @@
         public const int SURVIVOR_TEAM = 2;
         public const int INFECTED_TEAM = 3;
 
-        public const int LIFE_STATE_ALIVE = 2;
+        public const int LIFE_STATE_ALIVE = 2; 
 
         // Podrías mover aquí constantes como el máximo de entidades o la tecla del aimbot si lo prefieres.
         // public const int MAX_ENTITIES = 900;

@@ -1,144 +1,150 @@
-﻿using ClickableTransparentOverlay;
+﻿// Program.cs (Versión Final)
+using ClickableTransparentOverlay;
 using ImGuiNET;
-using l4d2External; // Para Entity, Offsets
+using l4d2External;
 using System.Text;
 using Swed32;
 using System.Numerics;
-using SharpDX.Direct3D11; // Presente en tu código original, aunque no se use explícitamente aquí
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace left4dead2Menu
 {
     class Program : Overlay
     {
-        // --- Instancias y Variables Principales ---
-        private readonly Encoding encoding = Encoding.ASCII;
+        private static readonly object _listLock = new object();
+        private readonly Swed swed = new Swed("left4dead2");
         private readonly Offsets offsets = new Offsets();
-        private readonly Swed swed = new Swed("left4dead2"); // Nombre del proceso
-
         private readonly Entity localPlayer = new Entity();
         private readonly List<Entity> commonInfected = new List<Entity>();
         private readonly List<Entity> specialInfected = new List<Entity>();
+        private readonly List<Entity> bossInfected = new List<Entity>();
         private readonly List<Entity> survivors = new List<Entity>();
 
-        private IntPtr clientModule;
-        private IntPtr engineModule;
+        private EntityManager entityManager = null!;
+        private AimbotController aimbotController = null!;
+        private GuiManager guiManager = null!;
+        private Renderer renderer = null!;
+        private IntPtr clientModule, engineModule;
 
-        // --- Gestores de Lógica ---
-        private EntityManager entityManager;
-        private AimbotController aimbotController;
-        private GuiManager guiManager;
-
-        // --- Variables de Configuración (Accesibles por GuiManager) ---
+        // --- Configuración ---
         private bool enableAimbot = true;
         private float aimbotTargetZOffset = 25.0f;
+        private float aimbotSmoothness = 0.1f;
+        private bool aimbotOnBosses = true;
+        private bool aimbotOnSpecials = true;
+        private bool aimbotOnCommons = false;
+        private bool aimbotOnSurvivors = false;
         private bool drawFovCircle = true;
         private float fovCircleVisualRadius = 100.0f;
-        private Vector4 fovCircleColor = new Vector4(1, 1, 1, 0.5f); // Blanco semitransparente
-        private float aimbotSmoothness = 0.1f;
-        private readonly int specialAimbotKey = 0x05; // VK_XBUTTON2 (Botón lateral del ratón)
-
-        // Variables para dimensiones de pantalla
-        private float screenWidth;
-        private float screenHeight;
-        private Vector2 centerScreen;
-
-        public Program() // Constructor
-        {
-            // Inicializar módulos y gestores aquí o en un método aparte si se prefiere
-            // Esto se llamará antes de que el overlay comience su bucle
-        }
+        private Vector4 fovCircleColor = new Vector4(1, 1, 1, 0.5f);
+        private readonly int specialAimbotKey = 0x05;
+        private bool enableEsp = true;
+        private bool espOnBosses = true;
+        private bool espOnSpecials = true;
+        private bool espOnCommons = true;
+        private bool espOnSurvivors = true;
+        private Vector4 espColorBosses = new Vector4(1, 0, 0, 1);
+        private Vector4 espColorSpecials = new Vector4(1, 0.6f, 0, 1);
+        private Vector4 espColorCommons = new Vector4(0.8f, 0.8f, 0.8f, 0.7f);
+        private Vector4 espColorSurvivors = new Vector4(0.2f, 0.8f, 1, 1);
 
         private void InitializeLogicModules()
         {
             clientModule = swed.GetModuleBase("client.dll");
             engineModule = swed.GetModuleBase("engine.dll");
+            if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero) return;
 
-            if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero)
-            {
-                Console.WriteLine("Error: No se pudieron obtener los módulos base. Asegúrate que el juego está corriendo.");
-                // Considera cerrar la aplicación o manejar este error de forma adecuada.
-                // Environment.Exit(1); // Ejemplo
-                return;
-            }
-
-            entityManager = new EntityManager(swed, offsets, encoding);
+            entityManager = new EntityManager(swed, offsets, Encoding.ASCII);
             aimbotController = new AimbotController(swed, engineModule, offsets);
             guiManager = new GuiManager();
+            renderer = new Renderer(swed, engineModule, offsets);
         }
 
         protected override void Render()
         {
-            // Actualizar dimensiones de la pantalla y centro
-            screenWidth = ImGui.GetIO().DisplaySize.X;
-            screenHeight = ImGui.GetIO().DisplaySize.Y;
-            centerScreen = new Vector2(screenWidth / 2, screenHeight / 2);
+            float screenWidth = ImGui.GetIO().DisplaySize.X;
+            float screenHeight = ImGui.GetIO().DisplaySize.Y;
+            Vector2 centerScreen = new Vector2(screenWidth / 2, screenHeight / 2);
 
-            ImGui.Begin("l4d2 external by Russ"); // Nombre de la ventana del menú
+            ImGui.Begin("l4d2 external by Russ");
+            guiManager.DrawMenuControls(
+                ref enableAimbot, ref aimbotTargetZOffset, ref drawFovCircle, ref fovCircleVisualRadius, ref aimbotSmoothness,
+                ref aimbotOnBosses, ref aimbotOnSpecials, ref aimbotOnCommons, ref aimbotOnSurvivors,
+                ref enableEsp, ref espOnBosses, ref espColorBosses, ref espOnSpecials, ref espColorSpecials,
+                ref espOnCommons, ref espColorCommons, ref espOnSurvivors, ref espColorSurvivors
+            );
+            ImGui.End();
 
-            if (guiManager != null) // Asegurarse que está inicializado
+            if (renderer != null)
             {
-                guiManager.DrawMenuControls(
-                   ref enableAimbot,
-                   ref aimbotTargetZOffset,
-                   ref drawFovCircle,
-                   ref fovCircleVisualRadius,
-                   ref aimbotSmoothness);
-            }
-            else
-            {
-                ImGui.Text("Error: GuiManager no inicializado.");
-            }
+                renderer.UpdateViewMatrix();
 
-            ImGui.End(); // Cierra la ventana del menú
-
-            // Dibujar el círculo del FOV si está activado
-            if (guiManager != null && enableAimbot && drawFovCircle && fovCircleVisualRadius > 0)
-            {
-                guiManager.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, fovCircleVisualRadius, fovCircleColor);
+                if (enableAimbot && drawFovCircle)
+                {
+                    renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, fovCircleVisualRadius, fovCircleColor);
+                }
+                if (enableEsp)
+                {
+                    List<Entity> commonSnapshot, specialSnapshot, bossSnapshot, survivorSnapshot;
+                    lock (_listLock)
+                    {
+                        commonSnapshot = new List<Entity>(commonInfected);
+                        specialSnapshot = new List<Entity>(specialInfected);
+                        bossSnapshot = new List<Entity>(bossInfected);
+                        survivorSnapshot = new List<Entity>(survivors);
+                    }
+                    renderer.RenderAll(
+                        ImGui.GetBackgroundDrawList(), screenWidth, screenHeight,
+                        commonSnapshot, specialSnapshot, bossSnapshot, survivorSnapshot,
+                        espOnBosses, espColorBosses, espOnSpecials, espColorSpecials,
+                        espOnCommons, espColorCommons, espOnSurvivors, espColorSurvivors
+                    );
+                }
             }
         }
 
-        void MainLogicLoop() // Renombrado de MainLogic para claridad
+        void MainLogicLoop()
         {
-            InitializeLogicModules(); // Mover inicialización aquí para que se ejecute en el Thread
-
-            // Verificar si la inicialización falló
-            if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero || entityManager == null || aimbotController == null || guiManager == null)
-            {
-                Console.WriteLine("Deteniendo MainLogicLoop debido a un error de inicialización.");
-                return; // No continuar si hay errores
-            }
+            InitializeLogicModules();
+            if (entityManager == null || aimbotController == null) return;
 
             while (true)
             {
-                entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, survivors, clientModule);
-
-                if (enableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0) // Tecla presionada
+                lock (_listLock)
                 {
-                    // Asegurarse que localPlayer es válido antes de pasarlo al aimbot
-                    if (localPlayer.address != IntPtr.Zero)
+                    entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, clientModule);
+                }
+
+                if (enableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0)
+                {
+                    var aimTargets = new List<Entity>();
+                    lock (_listLock)
                     {
-                        aimbotController.PerformAimbotActions(localPlayer, specialInfected, fovCircleVisualRadius, aimbotTargetZOffset, aimbotSmoothness);
+                        if (aimbotOnBosses) aimTargets.AddRange(bossInfected);
+                        if (aimbotOnSpecials) aimTargets.AddRange(specialInfected);
+                        if (aimbotOnCommons) aimTargets.AddRange(commonInfected);
+                        if (aimbotOnSurvivors) aimTargets.AddRange(survivors);
+                    }
+                    if (aimTargets.Count > 0)
+                    {
+                        aimTargets.Sort((a, b) => a.magnitude.CompareTo(b.magnitude));
+                        aimbotController.PerformAimbotActions(localPlayer, aimTargets, fovCircleVisualRadius, aimbotTargetZOffset, aimbotSmoothness);
                     }
                 }
-                Thread.Sleep(5); // Pequeña pausa para no sobrecargar la CPU
+                Thread.Sleep(5);
             }
         }
 
         static void Main(string[] args)
         {
             Program program = new Program();
-
             IntPtr consoleHandle = NativeMethods.GetConsoleWindow();
-            NativeMethods.ShowWindow(consoleHandle, GameConstants.SW_HIDE); // Oculta la consola
-
-            Thread mainLogicThread = new Thread(program.MainLogicLoop)
-            {
-                IsBackground = true // El hilo terminará cuando la aplicación principal cierre
-            };
+            NativeMethods.ShowWindow(consoleHandle, GameConstants.SW_HIDE);
+            Thread mainLogicThread = new Thread(program.MainLogicLoop) { IsBackground = true };
             mainLogicThread.Start();
-
-            program.Start().Wait(); // Inicia el overlay (bloqueante hasta que cierre)
+            program.Start().Wait();
         }
     }
 }
