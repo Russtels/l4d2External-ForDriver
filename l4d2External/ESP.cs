@@ -1,5 +1,6 @@
-﻿// ESP.cs (Nuevo)
+﻿// ESP.cs (Modificado)
 using ImGuiNET;
+using System;
 using System.Numerics;
 
 namespace left4dead2Menu
@@ -13,7 +14,7 @@ namespace left4dead2Menu
 
         public static void DrawHealthBar(ImDrawListPtr drawList, Vector2 boxTopLeft, Vector2 boxBottomRight, int currentHealth, int maxHealth)
         {
-            currentHealth = System.Math.Max(0, System.Math.Min(currentHealth, maxHealth));
+            currentHealth = Math.Max(0, Math.Min(currentHealth, maxHealth));
 
             float healthPercentage = (float)currentHealth / maxHealth;
             float boxWidth = boxBottomRight.X - boxTopLeft.X;
@@ -27,6 +28,24 @@ namespace left4dead2Menu
 
             drawList.AddRectFilled(healthBarStart, healthBarBgEnd, colorRed);
             drawList.AddRectFilled(healthBarStart, healthBarEnd, colorGreen);
+        }
+
+        // --- NUEVO MÉTODO PARA DIBUJAR LA CABEZA ---
+        public static void DrawHeadBone(ImDrawListPtr drawList, Vector2 boxTopLeft, float boxWidth, float boxHeight, uint color)
+        {
+            // Círculo en la posición de la cabeza, relativo al tamaño del cuadro
+            Vector2 headCenter = new Vector2(boxTopLeft.X + boxWidth / 2, boxTopLeft.Y + boxHeight * 0.1f);
+            float headRadius = boxWidth * 0.15f; // Radio relativo al ancho
+            drawList.AddCircle(headCenter, headRadius, color, 12, 1.5f);
+        }
+
+        // --- NUEVO MÉTODO PARA DIBUJAR EL CUERPO/TORSO ---
+        public static void DrawBodyBone(ImDrawListPtr drawList, Vector2 boxTopLeft, float boxWidth, float boxHeight, uint color)
+        {
+            // Rectángulo en la posición del torso, relativo al tamaño del cuadro
+            Vector2 bodyTopLeft = new Vector2(boxTopLeft.X + boxWidth * 0.2f, boxTopLeft.Y + boxHeight * 0.2f);
+            Vector2 bodyBottomRight = new Vector2(boxTopLeft.X + boxWidth * 0.8f, boxTopLeft.Y + boxHeight * 0.6f);
+            drawList.AddRect(bodyTopLeft, bodyBottomRight, color, 0, ImDrawFlags.None, 1.5f);
         }
     }
 }

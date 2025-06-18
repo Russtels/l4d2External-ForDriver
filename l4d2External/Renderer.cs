@@ -32,16 +32,11 @@ namespace left4dead2Menu
                 if (viewMatrixBase != IntPtr.Zero)
                 {
                     var matrixAddress = viewMatrixBase + offsets.ViewMatrixOffset;
-
-                    // --- SOLUCIÓN: LECTURA MANUAL DE LA MATRIZ ---
-                    byte[] matrixBytes = swed.ReadBytes(matrixAddress, 64); // 16 floats * 4 bytes/float = 64 bytes
+                    byte[] matrixBytes = swed.ReadBytes(matrixAddress, 64);
                     if (matrixBytes != null && matrixBytes.Length == 64)
                     {
                         float[] matrixFloats = new float[16];
-                        // Copiamos los bytes al array de floats
                         Buffer.BlockCopy(matrixBytes, 0, matrixFloats, 0, 64);
-
-                        // Construimos el objeto Matrix4x4
                         viewMatrix = new Matrix4x4(
                             matrixFloats[0], matrixFloats[1], matrixFloats[2], matrixFloats[3],
                             matrixFloats[4], matrixFloats[5], matrixFloats[6], matrixFloats[7],
@@ -54,11 +49,9 @@ namespace left4dead2Menu
             catch { viewMatrix = new Matrix4x4(); }
         }
 
-        private bool WorldToScreen(Vector3 worldPos, out Vector2 screenPos, float screenWidth, float screenHeight)
+        public bool WorldToScreen(Vector3 worldPos, out Vector2 screenPos, float screenWidth, float screenHeight)
         {
             screenPos = Vector2.Zero;
-
-            // Transponemos la matriz aquí, justo antes de usarla, por claridad.
             Matrix4x4 transposedMatrix = Matrix4x4.Transpose(viewMatrix);
             Vector4 clipCoords = Vector4.Transform(worldPos, transposedMatrix);
 
@@ -84,15 +77,17 @@ namespace left4dead2Menu
             ImDrawListPtr drawList, float screenWidth, float screenHeight,
             List<Entity> common, List<Entity> special, List<Entity> bosses, List<Entity> survivors,
             bool espOnBosses, Vector4 espColorBosses, bool espOnSpecials, Vector4 espColorSpecials,
-            bool espOnCommons, Vector4 espColorCommons, bool espOnSurvivors, Vector4 espColorSurvivors)
+            bool espOnCommons, Vector4 espColorCommons, bool espOnSurvivors, Vector4 espColorSurvivors,
+            // Nuevos parámetros para el control del bonematrix
+            bool espDrawHead, bool espDrawBody)
         {
-            if (espOnCommons) RenderESPForEntities(drawList, common, espColorCommons, screenWidth, screenHeight, 50);
-            if (espOnSpecials) RenderESPForEntities(drawList, special, espColorSpecials, screenWidth, screenHeight, 300);
-            if (espOnBosses) RenderESPForEntities(drawList, bosses, espColorBosses, screenWidth, screenHeight, 6000);
-            if (espOnSurvivors) RenderESPForEntities(drawList, survivors, espColorSurvivors, screenWidth, screenHeight, 100);
+            if (espOnCommons) RenderESPForEntities(drawList, common, espColorCommons, screenWidth, screenHeight, 50, espDrawHead, espDrawBody);
+            if (espOnSpecials) RenderESPForEntities(drawList, special, espColorSpecials, screenWidth, screenHeight, 300, espDrawHead, espDrawBody);
+            if (espOnBosses) RenderESPForEntities(drawList, bosses, espColorBosses, screenWidth, screenHeight, 6000, espDrawHead, espDrawBody);
+            if (espOnSurvivors) RenderESPForEntities(drawList, survivors, espColorSurvivors, screenWidth, screenHeight, 100, espDrawHead, espDrawBody);
         }
 
-        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 color, float screenWidth, float screenHeight, int maxHealth)
+        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 color, float screenWidth, float screenHeight, int maxHealth, bool drawHead, bool drawBody)
         {
             if (entities == null) return;
             uint uintColor = ImGui.GetColorU32(color);
@@ -114,6 +109,17 @@ namespace left4dead2Menu
                     Vector2 bottomRight = new Vector2(screenFeet.X + width / 2, screenFeet.Y);
 
                     ESP.DrawBox(drawList, topLeft, bottomRight, uintColor);
+
+                    // --- LLAMADAS A LOS NUEVOS MÉTODOS DE DIBUJO ---
+                    if (drawHead)
+                    {
+                        ESP.DrawHeadBone(drawList, topLeft, width, height, uintColor);
+                    }
+                    if (drawBody)
+                    {
+                        ESP.DrawBodyBone(drawList, topLeft, width, height, uintColor);
+                    }
+
                     ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
                 }
             }
