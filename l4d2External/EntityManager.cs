@@ -110,25 +110,32 @@ namespace left4dead2Menu
             entity.viewOffset = swed.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
             entity.magnitude = MathUtils.CalculateMagnitude(entity.origin, localPlayerOriginForMagnitude);
-
             entity.modelName = null;
+            entity.SimpleName = "Desconocido";
+            
             try
             {
                 IntPtr ptrToObject = swed.ReadPointer(entity.address, offsets.ModelName);
                 if (ptrToObject != IntPtr.Zero)
                 {
-                    byte[] buffer = swed.ReadBytes(ptrToObject + 0x04, 120);
+                    byte[] buffer = swed.ReadBytes(ptrToObject + 0x04, 250);
                     entity.modelName = encoding.GetString(buffer).Split('\0')[0];
                 }
 
-                if (string.IsNullOrEmpty(entity.modelName))
+                if (!string.IsNullOrEmpty(entity.modelName))
                 {
-                    IntPtr stringPtrFallback = swed.ReadPointer(entity.address, FALLBACK_MODELNAME_POINTER_OFFSET);
-                    if (stringPtrFallback != IntPtr.Zero)
-                    {
-                        byte[] buffer = swed.ReadBytes(stringPtrFallback, 120);
-                        entity.modelName = encoding.GetString(buffer).Split('\0')[0];
-                    }
+                    string model = entity.modelName.ToLower();
+
+                    if (model.Contains("survivor")) entity.SimpleName = "Superviviente";
+                    else if (model.Contains("witch")) entity.SimpleName = "Witch";
+                    else if (model.Contains("hulk")) entity.SimpleName = "Tank";
+                    else if (model.Contains("smoker")) entity.SimpleName = "Smoker";
+                    else if (model.Contains("hunter")) entity.SimpleName = "Hunter";
+                    else if (model.Contains("jockey")) entity.SimpleName = "Jockey";
+                    else if (model.Contains("boomer")) entity.SimpleName = "Boomer";
+                    else if (model.Contains("spitter")) entity.SimpleName = "Spitter";
+                    else if (model.Contains("charger")) entity.SimpleName = "Charger";
+                    else if (model.Contains("infected/common")) entity.SimpleName = "Común";
                 }
             }
             catch { entity.modelName = "ERR_NAME"; }

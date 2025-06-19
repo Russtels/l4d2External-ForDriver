@@ -37,6 +37,7 @@ namespace left4dead2Menu
         public const int KEYEVENTF_KEYUP = 0x0002;
         public const int KEYEVENTF_SCANCODE = 0x0008;
 
+        public const uint MOUSEEVENTF_MOVE = 0x0001;
         public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
 
@@ -93,20 +94,33 @@ namespace left4dead2Menu
             public uint type; // 0 = mouse, 1 = keyboard, 2 = hardware
             public MOUSEKEYBDHARDWAREINPUT mkhi;
         }
+        public static void SimulateMouseMove(int dx, int dy)
+        {
+            INPUT[] inputs = new INPUT[1];
+            inputs[0].type = INPUT_MOUSE;
+            inputs[0].mkhi.mi.dx = dx;
+            inputs[0].mkhi.mi.dy = dy;
+            inputs[0].mkhi.mi.dwFlags = MOUSEEVENTF_MOVE;
+            SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT)));
+        }
 
         public static void SimulateRightClick()
         {
-            INPUT[] inputs = new INPUT[2];
+            // --- PRESIÓN DEL BOTÓN ---
+            INPUT[] inputDown = new INPUT[1];
+            inputDown[0].type = INPUT_MOUSE;
+            inputDown[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+            SendInput(1, inputDown, Marshal.SizeOf(typeof(INPUT)));
 
-            // Presionar botón derecho
-            inputs[0].type = INPUT_MOUSE;
-            inputs[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+            // --- PAUSA PARA ASEGURAR LA DETECCIÓN ---
+            // Una pequeña espera para simular un clic real y que el juego lo detecte.
+            Thread.Sleep(50);
 
-            // Soltar botón derecho
-            inputs[1].type = INPUT_MOUSE;
-            inputs[1].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
-
-            SendInput(2, inputs, Marshal.SizeOf(typeof(INPUT)));
+            // --- LIBERACIÓN DEL BOTÓN ---
+            INPUT[] inputUp = new INPUT[1];
+            inputUp[0].type = INPUT_MOUSE;
+            inputUp[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
+            SendInput(1, inputUp, Marshal.SizeOf(typeof(INPUT)));
         }
 
         // Firma de la función SendInput

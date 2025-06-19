@@ -19,8 +19,16 @@ namespace l4d2External
         public Vector3 viewOffset { get; set; }
         public Vector3 abs { get; set; }
         public float magnitude { get; set; }
+        public string? SimpleName { get; set; }
 
         // Solución para la advertencia CS8618: La propiedad ahora puede ser nula.
         public string? modelName { get; set; }
+        public Entity()
+        {
+            address = IntPtr.Zero;
+            origin = Vector3.Zero;
+            abs = Vector3.Zero;
+            viewOffset = Vector3.Zero;
+        }
     }
 }

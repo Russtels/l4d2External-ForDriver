@@ -1,4 +1,4 @@
-﻿// Program.cs (Versión Final Sincronizada)
+﻿// Program.cs (Corregido y Final)
 using ClickableTransparentOverlay;
 using ImGuiNET;
 using l4d2External;
@@ -30,9 +30,14 @@ namespace left4dead2Menu
         private Areas areaController = new Areas();
         private IntPtr clientModule, engineModule;
 
+        private bool hasPerformedMeleeShove = false;
+
+        // --- SOLUCIÓN: AÑADIR LA DECLARACIÓN DE LA VARIABLE FALTANTE ---
+        private Entity? currentAimbotTarget = null;
+
         // --- Configuración Aimbot ---
         private bool enableAimbot = true;
-        private float aimbotTargetZOffset = 0.0f;
+        private float aimbotTargetZOffset = 0f;
         private float aimbotSmoothness = 0.1f;
         private AimbotTarget aimbotTargetSelection = AimbotTarget.Head;
         private bool aimbotOnBosses = true;
@@ -42,12 +47,11 @@ namespace left4dead2Menu
         private bool drawFovCircle = true;
         private float fovCircleVisualRadius = 100.0f;
         private Vector4 fovCircleColor = new Vector4(1, 1, 1, 0.5f);
-        private readonly int specialAimbotKey = 0x06; // Usando el botón del ratón
-
+        private readonly int specialAimbotKey = 0x06;
         private bool enableAimbotArea = false;
         private float aimbotAreaRadius = 300.0f;
         private int aimbotAreaSegments = 40;
-        private Vector4 aimbotAreaColor = new Vector4(1, 0, 1, 0.7f); // Magenta
+        private Vector4 aimbotAreaColor = new Vector4(1, 0, 1, 0.7f);
 
         // --- Configuración ESP ---
         private bool enableEsp = true;
@@ -62,15 +66,19 @@ namespace left4dead2Menu
         private bool espDrawHead = true;
         private bool espDrawBody = true;
 
-        // --- Configuración BunnyHop ---
+        // --- Configuración Others ---
         private bool enableBunnyHop = true;
-
-        // --- VARIABLES RENOMBRADAS Y ACTUALIZADAS ---
         private bool enableMeleeArea = true;
         private float meleeAreaRadius = 80.0f;
         private int meleeAreaSegments = 40;
-        private Vector4 meleeAreaColor = new Vector4(0, 1, 1, 0.7f); // Cian
-
+        private Vector4 meleeAreaColor = new Vector4(0, 1, 1, 0.7f);
+        private bool meleeOnCommons = true;
+        private bool meleeOnHunter = true;
+        private bool meleeOnSmoker = true;
+        private bool meleeOnBoomer = true;
+        private bool meleeOnJockey = true;
+        private bool meleeOnSpitter = false;
+        private bool meleeOnCharger = false;
 
         private void InitializeLogicModules()
         {
@@ -79,7 +87,7 @@ namespace left4dead2Menu
             if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero) return;
 
             entityManager = new EntityManager(swed, offsets, Encoding.ASCII);
-            aimbotController = new AimbotController(swed, engineModule, offsets);
+            aimbotController = new AimbotController();
             guiManager = new GuiManager();
             renderer = new Renderer(swed, engineModule, offsets);
             bunnyHopController = new BunnyHop(swed, offsets);
@@ -105,7 +113,10 @@ namespace left4dead2Menu
                 ref espDrawHead, ref espDrawBody,
                 // Others
                 ref enableBunnyHop,
-                ref enableMeleeArea, ref meleeAreaRadius, ref meleeAreaSegments, ref meleeAreaColor
+                ref enableMeleeArea, ref meleeAreaRadius, ref meleeAreaSegments, ref meleeAreaColor,
+                ref meleeOnCommons,
+                ref meleeOnHunter, ref meleeOnSmoker, ref meleeOnBoomer,
+                ref meleeOnJockey, ref meleeOnSpitter, ref meleeOnCharger
             );
             ImGui.End();
 
@@ -113,19 +124,43 @@ namespace left4dead2Menu
             {
                 renderer.UpdateViewMatrix();
 
-                // DIBUJAR ÁREA MELEE
+                // La variable 'currentAimbotTarget' ya es accesible aquí
+                if (enableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0)
+                {
+                    // 1. Construir lista de objetivos potenciales
+                    var aimTargets = new List<Entity>();
+                    lock (_listLock)
+                    {
+                        if (aimbotOnBosses) aimTargets.AddRange(bossInfected);
+                        if (aimbotOnSpecials) aimTargets.AddRange(specialInfected);
+                        if (aimbotOnCommons) aimTargets.AddRange(commonInfected);
+                        if (aimbotOnSurvivors) aimTargets.AddRange(survivors);
+                    }
+
+                    // 2. Encontrar el mejor objetivo
+                    if (aimTargets.Count > 0)
+                    {
+                        var bestTarget = aimbotController.FindBestTarget(localPlayer, aimTargets, aimbotTargetSelection, enableAimbotArea, aimbotAreaRadius, fovCircleVisualRadius, renderer, screenWidth, screenHeight);
+
+                        // 3. Actuar sobre el objetivo si se encontró uno
+                        if (bestTarget != null)
+                        {
+                            aimbotController.ExecuteMouseAimbot(bestTarget, localPlayer, aimbotTargetSelection, aimbotSmoothness, renderer, screenWidth, screenHeight);
+                        }
+                    }
+                }
+
                 if (enableMeleeArea && localPlayer.address != IntPtr.Zero)
                 {
                     areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, meleeAreaRadius, meleeAreaSegments, meleeAreaColor);
                 }
 
-                // DIBUJAR ÁREA AIMBOT
                 if (enableAimbotArea && localPlayer.address != IntPtr.Zero)
                 {
                     areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, aimbotAreaRadius, aimbotAreaSegments, aimbotAreaColor);
                 }
 
-                if (enableAimbot && drawFovCircle && !enableAimbotArea) // Solo dibuja el FOV si el modo área no está activo
+                if (enableAimbot && drawFovCircle && !enableAimbotArea)
                 {
                     renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, fovCircleVisualRadius, fovCircleColor);
                 }
@@ -150,55 +185,59 @@ namespace left4dead2Menu
             }
         }
 
+        // --- MainLogicLoop AHORA ES MÁS SIMPLE ---
         void MainLogicLoop()
         {
             InitializeLogicModules();
-            if (entityManager == null || aimbotController == null || bunnyHopController == null) return;
+            if (entityManager == null || bunnyHopController == null) return;
 
             while (true)
             {
-                var allEnemies = new List<Entity>();
+                // Solo se encarga de actualizar entidades y lógicas que no dependen de la UI
                 lock (_listLock)
                 {
                     entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, clientModule);
-                    allEnemies.AddRange(commonInfected);
-                    allEnemies.AddRange(specialInfected);
-                    allEnemies.AddRange(bossInfected);
                 }
 
                 if (localPlayer.address != IntPtr.Zero)
                 {
                     bunnyHopController.Update(localPlayer.address, enableBunnyHop);
 
-                    // LÓGICA DE ATAQUE MELEE AUTOMÁTICO
                     if (enableMeleeArea)
                     {
-                        // Comprueba si algún enemigo está dentro del radio de melee
-                        bool enemyInMeleeRange = allEnemies.Any(e => e.magnitude <= meleeAreaRadius);
-                        if (enemyInMeleeRange)
+                        var meleeTargets = new List<Entity>();
+                        lock (_listLock)
+                        {
+                            if (meleeOnCommons) meleeTargets.AddRange(commonInfected);
+
+                            foreach (var special in specialInfected)
+                            {
+                                switch (special.SimpleName)
+                                {
+                                    case "Hunter": if (meleeOnHunter) meleeTargets.Add(special); break;
+                                    case "Smoker": if (meleeOnSmoker) meleeTargets.Add(special); break;
+                                    case "Boomer": if (meleeOnBoomer) meleeTargets.Add(special); break;
+                                    case "Jockey": if (meleeOnJockey) meleeTargets.Add(special); break;
+                                    case "Spitter": if (meleeOnSpitter) meleeTargets.Add(special); break;
+                                    case "Charger": if (meleeOnCharger) meleeTargets.Add(special); break;
+                                }
+                            }
+                        }
+
+                        bool enemyInMeleeRange = meleeTargets.Any(e => e.health > 0 && e.magnitude <= meleeAreaRadius);
+
+                        if (enemyInMeleeRange && !hasPerformedMeleeShove)
                         {
                             NativeMethods.SimulateRightClick();
-                            Thread.Sleep(50); // Pequeña pausa para no spamear clics
+                            hasPerformedMeleeShove = true;
+                        }
+                        else if (!enemyInMeleeRange)
+                        {
+                            hasPerformedMeleeShove = false;
                         }
                     }
                 }
 
-                if (enableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0)
-                {
-                    var aimTargets = new List<Entity>();
-                    lock (_listLock)
-                    {
-                        if (aimbotOnBosses) aimTargets.AddRange(bossInfected);
-                        if (aimbotOnSpecials) aimTargets.AddRange(specialInfected);
-                        if (aimbotOnCommons) aimTargets.AddRange(commonInfected);
-                        if (aimbotOnSurvivors) aimTargets.AddRange(survivors);
-                    }
-                    if (aimTargets.Count > 0)
-                    {
-                        // Pasar los nuevos parámetros al aimbot
-                        aimbotController.PerformAimbotActions(localPlayer, aimTargets, fovCircleVisualRadius, aimbotTargetZOffset, aimbotSmoothness, aimbotTargetSelection, enableAimbotArea, aimbotAreaRadius);
-                    }
-                }
                 Thread.Sleep(5);
             }
         }

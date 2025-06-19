@@ -24,7 +24,11 @@ namespace left4dead2Menu
 
             // Others
             ref bool enableBunnyHop,
-            ref bool enableMeleeArea, ref float meleeAreaRadius, ref int meleeAreaSegments, ref Vector4 meleeAreaColor
+            ref bool enableMeleeArea, ref float meleeAreaRadius, ref int meleeAreaSegments, ref Vector4 meleeAreaColor,
+            // --- PARÁMETROS DE FILTRO MELEE ACTUALIZADOS ---
+            ref bool meleeOnCommons,
+            ref bool meleeOnHunter, ref bool meleeOnSmoker, ref bool meleeOnBoomer,
+            ref bool meleeOnJockey, ref bool meleeOnSpitter, ref bool meleeOnCharger
             )
         {
             if (ImGui.BeginTabBar("MainTabBar"))
@@ -59,7 +63,7 @@ namespace left4dead2Menu
                         ImGui.SeparatorText("Aimbot FOV");
                         ImGui.Checkbox("Show FOV", ref drawFovCircle);
                         ImGui.SliderFloat("Radio del FOV", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
-                        
+
 
                         // --- NUEVOS CONTROLES PARA AIMBOT AREA ---
                         ImGui.SeparatorText("Área de Aimbot (Modo Radio)");
@@ -109,7 +113,6 @@ namespace left4dead2Menu
                     ImGui.SeparatorText("Movimiento");
                     ImGui.Checkbox("Habilitar Bunny Hop", ref enableBunnyHop);
 
-                    // --- SECCIÓN RENOMBRADA Y ACTUALIZADA ---
                     ImGui.SeparatorText("Área de Melee (Ataque Automático)");
                     ImGui.Checkbox("Habilitar Área Melee", ref enableMeleeArea);
                     if (enableMeleeArea)
@@ -117,12 +120,33 @@ namespace left4dead2Menu
                         ImGui.SliderFloat("Radio del Área Melee", ref meleeAreaRadius, 50.0f, 300.0f, "%.0f u");
                         ImGui.SliderInt("Segmentos (Melee)", ref meleeAreaSegments, 12, 100);
                         ImGui.ColorEdit4("Color (Melee)", ref meleeAreaColor, ImGuiColorEditFlags.NoInputs);
+
+                        // --- CONTROLES DE FILTRO REEMPLAZADOS ---
+                        ImGui.SeparatorText("Objetivos Melee");
+                        ImGui.Checkbox("Comunes", ref meleeOnCommons);
+
+                        // Fila 1 de Especiales
+                        ImGui.Checkbox("Hunter", ref meleeOnHunter);
+                        ImGui.SameLine();
+                        ImGui.Checkbox("Smoker", ref meleeOnSmoker);
+                        ImGui.SameLine();
+                        ImGui.Checkbox("Boomer", ref meleeOnBoomer);
+
+                        // Fila 2 de Especiales
+                        ImGui.Checkbox("Jockey", ref meleeOnJockey);
+                        ImGui.SameLine();
+                        ImGui.Checkbox("Spitter", ref meleeOnSpitter);
+                        ImGui.SameLine();
+                        ImGui.Checkbox("Charger", ref meleeOnCharger);
                     }
 
                     ImGui.EndTabItem();
-
-                    
                 }
+
+                ImGui.EndTabItem();
+
+
+
             }
             ImGui.EndTabBar();
         }

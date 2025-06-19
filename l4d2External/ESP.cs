@@ -47,5 +47,21 @@ namespace left4dead2Menu
             Vector2 bodyBottomRight = new Vector2(boxTopLeft.X + boxWidth * 0.8f, boxTopLeft.Y + boxHeight * 0.6f);
             drawList.AddRect(bodyTopLeft, bodyBottomRight, color, 0, ImDrawFlags.None, 1.5f);
         }
+        /// <summary>
+        /// Dibuja el nombre de la entidad sobre el cuadro del ESP.
+        /// </summary>
+        public static void DrawName(ImDrawListPtr drawList, string? name, Vector2 boxTopLeft, float boxWidth, uint color)
+        {
+            // Esta comprobación ya manejaba correctamente los nulos, ahora la firma coincide.
+            if (string.IsNullOrEmpty(name)) return;
+
+            Vector2 textSize = ImGui.CalcTextSize(name);
+            Vector2 textPos = new Vector2(
+                boxTopLeft.X + (boxWidth / 2) - (textSize.X / 2),
+                boxTopLeft.Y - textSize.Y - 2
+            );
+            drawList.AddText(textPos, color, name);
+        }
+
     }
 }

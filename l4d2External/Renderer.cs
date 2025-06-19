@@ -108,6 +108,7 @@ namespace left4dead2Menu
                     Vector2 topLeft = new Vector2(screenFeet.X - width / 2, screenHead.Y);
                     Vector2 bottomRight = new Vector2(screenFeet.X + width / 2, screenFeet.Y);
 
+                    ESP.DrawName(drawList, entity.SimpleName, topLeft, width, uintColor);
                     ESP.DrawBox(drawList, topLeft, bottomRight, uintColor);
 
                     // --- LLAMADAS A LOS NUEVOS MÉTODOS DE DIBUJO ---
