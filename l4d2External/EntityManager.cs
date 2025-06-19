@@ -72,6 +72,10 @@ namespace left4dead2Menu
                 }
 
                 UpdateSingleEntityProperties(currentEntity, localPlayer.origin);
+                if (currentEntity.lifeState <= 0 || currentEntity.lifeState >100)
+                {
+                    continue;
+                }
 
                 if (!string.IsNullOrEmpty(currentEntity.modelName) && !currentEntity.modelName.StartsWith("DEBUG"))
                 {

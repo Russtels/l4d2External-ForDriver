@@ -34,11 +34,11 @@ namespace left4dead2Menu
                     ImGui.Checkbox("Habilitar Aimbot", ref enableAimbot);
                     if (enableAimbot)
                     {
-                        ImGui.SeparatorText("Configuración General");
-                        ImGui.SliderFloat("Desplazamiento Z", ref aimbotTargetZOffset, -50.0f, 50.0f, "%.1f u");
+                        ImGui.SeparatorText("config del aimbot");
+                        ImGui.SliderFloat("Desplazamiento Z(arreglo en lo que saco el boneESP)", ref aimbotTargetZOffset, -50.0f, 50.0f, "%.1f u");
                         ImGui.SliderFloat("Suavizado", ref aimbotSmoothness, 0.01f, 1.0f, "%.2f");
 
-                        ImGui.SeparatorText("Zona de Apuntado");
+                        ImGui.SeparatorText("Hitboxes");
                         int aimbotTargetInt = (int)aimbotTarget;
                         if (ImGui.RadioButton("Cabeza", ref aimbotTargetInt, (int)AimbotTarget.Head))
                         {
@@ -52,16 +52,14 @@ namespace left4dead2Menu
 
                         ImGui.SeparatorText("Objetivos");
                         ImGui.Checkbox("Jefes (Tank, Witch)", ref aimbotOnBosses);
-                        ImGui.Checkbox("Especiales", ref aimbotOnSpecials);
-                        ImGui.Checkbox("Comunes", ref aimbotOnCommons);
+                        ImGui.Checkbox("Especiales(Charger, Jockey, Smoker, Boomer , Spitter, Hunter)", ref aimbotOnSpecials);
+                        ImGui.Checkbox("Commons", ref aimbotOnCommons);
                         ImGui.Checkbox("Supervivientes", ref aimbotOnSurvivors);
 
-                        ImGui.SeparatorText("Visualización");
-                        ImGui.Checkbox("Dibujar Círculo FOV", ref drawFovCircle);
-                        ImGui.SliderFloat("Radio del Círculo", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
-                        ImGui.SeparatorText("Visualización y Modo");
-                        ImGui.Checkbox("Dibujar Círculo FOV (Modo Ángulo)", ref drawFovCircle);
-                        ImGui.SliderFloat("Radio del Círculo FOV", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
+                        ImGui.SeparatorText("Aimbot FOV");
+                        ImGui.Checkbox("Show FOV", ref drawFovCircle);
+                        ImGui.SliderFloat("Radio del FOV", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
+                        
 
                         // --- NUEVOS CONTROLES PARA AIMBOT AREA ---
                         ImGui.SeparatorText("Área de Aimbot (Modo Radio)");

@@ -32,7 +32,7 @@ namespace left4dead2Menu
 
         // --- Configuración Aimbot ---
         private bool enableAimbot = true;
-        private float aimbotTargetZOffset = 25.0f;
+        private float aimbotTargetZOffset = 0.0f;
         private float aimbotSmoothness = 0.1f;
         private AimbotTarget aimbotTargetSelection = AimbotTarget.Head;
         private bool aimbotOnBosses = true;
