@@ -3,7 +3,6 @@ using ClickableTransparentOverlay;
 using ImGuiNET;
 using l4d2External;
 using System.Text;
-using Swed32;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,8 +12,8 @@ namespace left4dead2Menu
 {
     class Program : Overlay
     {
+        private readonly GameMemory memory;
         private static readonly object _listLock = new object();
-        private readonly Swed swed = new Swed("left4dead2");
         private readonly Offsets offsets = new Offsets();
         private readonly Entity localPlayer = new Entity();
         private readonly List<Entity> commonInfected = new List<Entity>();
@@ -33,8 +32,6 @@ namespace left4dead2Menu
         private bool hasPerformedMeleeShove = false;
 
         // --- SOLUCIÓN: AÑADIR LA DECLARACIÓN DE LA VARIABLE FALTANTE ---
-        private Entity? currentAimbotTarget = null;
-
         // --- Configuración Aimbot ---
         private bool enableAimbot = true;
         private float aimbotTargetZOffset = 0f;
@@ -80,17 +77,33 @@ namespace left4dead2Menu
         private bool meleeOnSpitter = false;
         private bool meleeOnCharger = false;
 
+        public Program()
+        {
+            // La inicialización ahora puede fallar, así que la encapsulamos
+            try
+            {
+                memory = new GameMemory("left4dead2");
+            }
+            catch (Exception ex)
+            {
+                // Si GameMemory falla (ej. driver no cargado, juego no abierto), el programa termina.
+                Console.WriteLine($"Fallo en inicialización de Program: {ex.Message}");
+                Environment.Exit(1);
+            }
+        }
         private void InitializeLogicModules()
         {
-            clientModule = swed.GetModuleBase("client.dll");
-            engineModule = swed.GetModuleBase("engine.dll");
+            // clientModule y engineModule ahora vienen de 'memory'
+            clientModule = memory.client;
+            engineModule = memory.engine;
             if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero) return;
 
-            entityManager = new EntityManager(swed, offsets, Encoding.ASCII);
+            // Pasamos el objeto 'memory' en lugar de 'swed'
+            entityManager = new EntityManager(memory, offsets, Encoding.ASCII);
             aimbotController = new AimbotController();
             guiManager = new GuiManager();
-            renderer = new Renderer(swed, engineModule, offsets);
-            bunnyHopController = new BunnyHop(swed, offsets);
+            renderer = new Renderer(memory, engineModule, offsets);
+            bunnyHopController = new BunnyHop(memory, offsets);
         }
 
         protected override void Render()
@@ -244,12 +257,23 @@ namespace left4dead2Menu
 
         static void Main(string[] args)
         {
-            Program program = new Program();
-            IntPtr consoleHandle = NativeMethods.GetConsoleWindow();
-            NativeMethods.ShowWindow(consoleHandle, GameConstants.SW_HIDE);
-            Thread mainLogicThread = new Thread(program.MainLogicLoop) { IsBackground = true };
-            mainLogicThread.Start();
-            program.Start().Wait();
+            try
+            {
+                Program program = new Program();
+                IntPtr consoleHandle = NativeMethods.GetConsoleWindow();
+                NativeMethods.ShowWindow(consoleHandle, GameConstants.SW_SHOW);
+                Thread mainLogicThread = new Thread(program.MainLogicLoop) { IsBackground = true };
+                mainLogicThread.Start();
+                program.Start().Wait();
+            }
+            catch (Exception ex)
+            {
+                // Si algo falla, la consola permanecerá abierta mostrando el error.
+                Console.WriteLine($"\n--- ERROR CRÍTICO ---\n");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine("\nPresiona cualquier tecla para salir...");
+                Console.ReadKey();
+            }
         }
     }
 }

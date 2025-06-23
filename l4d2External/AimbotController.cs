@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Swed32;
 using l4d2External;
 
 namespace left4dead2Menu

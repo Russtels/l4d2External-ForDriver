@@ -2,13 +2,12 @@
 using System;
 using System.Threading;
 using l4d2External;
-using Swed32;
 
 namespace left4dead2Menu
 {
     internal class BunnyHop
     {
-        private readonly Swed swed;
+        private readonly GameMemory memory;
         private readonly Offsets offsets;
         private readonly Random random = new Random();
 
@@ -17,9 +16,9 @@ namespace left4dead2Menu
         private const int STANDING = 129;
         private const int DUCKING = 131;
 
-        public BunnyHop(Swed swed, Offsets offsets)
+        public BunnyHop(GameMemory memory, Offsets offsets) // Cambiado de Swed a GameMemory
         {
-            this.swed = swed;
+            this.memory = memory;
             this.offsets = offsets;
         }
 
@@ -30,7 +29,7 @@ namespace left4dead2Menu
 
             if (NativeMethods.GetAsyncKeyState(JUMP_KEY) < 0)
             {
-                int jumpFlag = swed.ReadInt(localPlayerAddress, offsets.JumpFlag);
+                int jumpFlag = memory.ReadInt(localPlayerAddress, offsets.JumpFlag);
                 bool onGround = (jumpFlag == STANDING || jumpFlag == DUCKING);
 
                 if (onGround)

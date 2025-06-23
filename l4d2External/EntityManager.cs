@@ -4,14 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using Swed32;
 using l4d2External;
 
 namespace left4dead2Menu
 {
     internal class EntityManager
     {
-        private readonly Swed swed;
+        private readonly GameMemory memory;
         private readonly Offsets offsets;
         private readonly Encoding encoding;
 
@@ -19,9 +18,9 @@ namespace left4dead2Menu
         private const int ENTITY_LOOP_STRIDE = 0x10;
         private const int FALLBACK_MODELNAME_POINTER_OFFSET = 0x10;
 
-        public EntityManager(Swed swed, Offsets offsets, Encoding encoding)
+        public EntityManager(GameMemory memory, Offsets offsets, Encoding encoding) // Cambiado de Swed a GameMemory
         {
-            this.swed = swed;
+            this.memory = memory;
             this.offsets = offsets;
             this.encoding = encoding;
         }
@@ -39,7 +38,7 @@ namespace left4dead2Menu
             bossInfected.Clear();
             survivors.Clear();
 
-            localPlayer.address = swed.ReadPointer(clientModuleBase, offsets.localplayer);
+            localPlayer.address = memory.ReadPointer(clientModuleBase, offsets.localplayer);
             if (localPlayer.address != IntPtr.Zero)
             {
                 UpdateSingleEntityProperties(localPlayer, Vector3.Zero, true);
@@ -64,7 +63,7 @@ namespace left4dead2Menu
             for (int i = 0; i < MAX_ENTITIES; i++)
             {
                 Entity currentEntity = new Entity();
-                currentEntity.address = swed.ReadPointer(entityListBase, i * ENTITY_LOOP_STRIDE);
+                currentEntity.address = memory.ReadPointer(entityListBase, i * ENTITY_LOOP_STRIDE);
 
                 if (currentEntity.address == IntPtr.Zero || currentEntity.address == localPlayer.address)
                 {
@@ -104,10 +103,10 @@ namespace left4dead2Menu
 
         private void UpdateSingleEntityProperties(Entity entity, Vector3 localPlayerOriginForMagnitude, bool isLocalPlayerUpdate = false)
         {
-            entity.lifeState = swed.ReadInt(entity.address, offsets.Lifestate);
-            entity.health = swed.ReadInt(entity.address, offsets.Health);
-            entity.origin = swed.ReadVec(entity.address, offsets.Origin);
-            entity.viewOffset = swed.ReadVec(entity.address, offsets.ViewOffset);
+            entity.lifeState = memory.ReadInt(entity.address, offsets.Lifestate);
+            entity.health = memory.ReadInt(entity.address, offsets.Health);
+            entity.origin = memory.ReadVec(entity.address, offsets.Origin);
+            entity.viewOffset = memory.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
             entity.magnitude = MathUtils.CalculateMagnitude(entity.origin, localPlayerOriginForMagnitude);
             entity.modelName = null;
@@ -115,10 +114,10 @@ namespace left4dead2Menu
             
             try
             {
-                IntPtr ptrToObject = swed.ReadPointer(entity.address, offsets.ModelName);
+                IntPtr ptrToObject = memory.ReadPointer(entity.address, offsets.ModelName);
                 if (ptrToObject != IntPtr.Zero)
                 {
-                    byte[] buffer = swed.ReadBytes(ptrToObject + 0x04, 250);
+                    byte[] buffer = memory.ReadBytes(ptrToObject + 0x04, 250);
                     entity.modelName = encoding.GetString(buffer).Split('\0')[0];
                 }
 

@@ -3,7 +3,6 @@ using ImGuiNET;
 using System.Numerics;
 using System.Collections.Generic;
 using l4d2External;
-using Swed32;
 using System;
 using System.Linq;
 
@@ -11,14 +10,14 @@ namespace left4dead2Menu
 {
     internal class Renderer
     {
-        private readonly Swed swed;
+        private readonly GameMemory memory;
         private readonly IntPtr engine;
         private readonly Offsets offsets;
         private Matrix4x4 viewMatrix;
 
-        public Renderer(Swed swed, IntPtr engine, Offsets offsets)
+        public Renderer(GameMemory memory, IntPtr engine, Offsets offsets) // Cambiado de Swed a GameMemory
         {
-            this.swed = swed;
+            this.memory = memory;
             this.engine = engine;
             this.offsets = offsets;
             this.viewMatrix = new Matrix4x4();
@@ -28,11 +27,11 @@ namespace left4dead2Menu
         {
             try
             {
-                var viewMatrixBase = swed.ReadPointer(engine, offsets.ViewMatrix);
+                var viewMatrixBase = memory.ReadPointer(engine, offsets.ViewMatrix);
                 if (viewMatrixBase != IntPtr.Zero)
                 {
                     var matrixAddress = viewMatrixBase + offsets.ViewMatrixOffset;
-                    byte[] matrixBytes = swed.ReadBytes(matrixAddress, 64);
+                    byte[] matrixBytes = memory.ReadBytes(matrixAddress, 64);
                     if (matrixBytes != null && matrixBytes.Length == 64)
                     {
                         float[] matrixFloats = new float[16];
