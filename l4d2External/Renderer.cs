@@ -121,16 +121,10 @@ namespace left4dead2Menu
             {
                 if (entity?.BonePositions == null || string.IsNullOrEmpty(entity.SimpleName)) continue;
 
-                if (!ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections) || connections.Length == 0)
+                // --- OPTIMIZACIÓN: Usar el conjunto de huesos pre-calculado ---
+                if (!ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var activeBoneIndices))
                 {
-                    continue;
-                }
-
-                var activeBoneIndices = new HashSet<int>();
-                for (int i = 0; i < connections.GetLength(0); i++)
-                {
-                    activeBoneIndices.Add(connections[i, 0]);
-                    activeBoneIndices.Add(connections[i, 1]);
+                    continue; // No hay esqueleto definido para esta entidad
                 }
 
                 float minX = float.MaxValue, minY = float.MaxValue;
@@ -140,7 +134,6 @@ namespace left4dead2Menu
                 foreach (int boneIndex in activeBoneIndices)
                 {
                     if (boneIndex >= entity.BonePositions.Length) continue;
-
                     Vector3 bonePos = entity.BonePositions[boneIndex];
                     if (bonePos == Vector3.Zero) continue;
 
@@ -160,27 +153,22 @@ namespace left4dead2Menu
                 Vector2 bottomRight = new Vector2(maxX + 5, maxY + 5);
                 float width = bottomRight.X - topLeft.X;
 
-                // --- DIBUJADO DE COMPONENTES ---
-
                 if (drawSkeleton)
                 {
                     ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde);
                 }
 
-                // <<< INICIO DEL CÓDIGO AÑADIDO PARA EL CÍRCULO DE LA CABEZA >>>
                 int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
                 if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
                 {
                     Vector3 headPos3D = entity.BonePositions[headBoneIndex];
                     if (WorldToScreen(headPos3D, out Vector2 headPos2D, screenWidth, screenHeight))
                     {
-                        // Dibuja el círculo en la posición real de la cabeza
-                        float radius = Math.Max(4, width / 12); // Un radio dinámico con un tamaño mínimo
+                        float radius = Math.Max(4, Math.Min(15, width / 12)); // Limita el radio entre 4 y 15
                         drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
                         drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
                     }
                 }
-                // <<< FIN DEL CÓDIGO AÑADIDO >>>
 
                 ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
                 ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);

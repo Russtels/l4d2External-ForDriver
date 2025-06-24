@@ -110,17 +110,13 @@ namespace left4dead2Menu
         {
             entity.lifeState = memory.ReadInt(entity.address, offsets.Lifestate);
 
-            // <<< CAMBIO 1: FILTRO MÁS SIMPLE Y SEGURO >>>
-            // Usamos solo la vida para validar. Es posible que el check de 'lifeState' anterior
-            // estuviera filtrando a la Witch o a los Comunes incorrectamente.
-            if (entity.lifeState == 0 || entity.lifeState >50)
+            if (entity.lifeState == 0 || entity.lifeState > 50)
             {
                 entity.modelName = null;
                 return;
             }
 
-            // Leemos el resto de datos básicos solo si la entidad está viva.
-            entity.lifeState = memory.ReadInt(entity.address, offsets.Lifestate);
+            entity.health = memory.ReadInt(entity.address, offsets.Health);
             entity.origin = memory.ReadVec(entity.address, offsets.Origin);
             entity.viewOffset = memory.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
@@ -131,7 +127,6 @@ namespace left4dead2Menu
 
             try
             {
-                // Lectura de nombre
                 IntPtr ptrToObject = memory.ReadPointer(entity.address, offsets.ModelName);
                 if (ptrToObject != IntPtr.Zero)
                 {
@@ -154,34 +149,33 @@ namespace left4dead2Menu
                     else if (model.Contains("infected")) entity.SimpleName = "Común";
                 }
 
-                // Lectura de huesos
                 IntPtr boneMatrixPtr = memory.ReadPointer(entity.address, offsets.BoneMatrix);
-
-                // <<< CAMBIO 2: LÍNEA DE DIAGNÓSTICO >>>
-                // Imprime el estado del puntero solo para las entidades que nos interesan.
-                if (entity.SimpleName == "Witch" || entity.SimpleName == "Común")
+                if (boneMatrixPtr != IntPtr.Zero && ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections))
                 {
-                    Console.WriteLine($"DIAGNÓSTICO: Entidad={entity.SimpleName}, Vida={entity.health}, Puntero Huesos={(boneMatrixPtr == IntPtr.Zero ? "NULO" : "VÁLIDO")}");
-                }
-
-                if (boneMatrixPtr != IntPtr.Zero)
-                {
-                    byte[] firstBoneBytes = memory.ReadBytes(boneMatrixPtr, 48);
-                    if (firstBoneBytes != null && firstBoneBytes.Length == 48)
+                    // --- OPTIMIZACIÓN DE LECTURA DE HUESOS ---
+                    int maxBoneIndex = 0;
+                    for (int i = 0; i < connections.GetLength(0); i++)
                     {
-                        float x_test = BitConverter.ToSingle(firstBoneBytes, 12);
-                        if (!float.IsNaN(x_test))
+                        maxBoneIndex = Math.Max(maxBoneIndex, Math.Max(connections[i, 0], connections[i, 1]));
+                    }
+
+                    if (maxBoneIndex > 0)
+                    {
+                        int bytesToRead = (maxBoneIndex + 1) * 48; // 48 bytes por matriz de hueso
+                        byte[] boneBytes = memory.ReadBytes(boneMatrixPtr, bytesToRead);
+
+                        if (boneBytes != null && boneBytes.Length == bytesToRead)
                         {
-                            entity.BonePositions = new Vector3[MAX_BONES];
-                            entity.BonePositions[0] = new Vector3(x_test, BitConverter.ToSingle(firstBoneBytes, 28), BitConverter.ToSingle(firstBoneBytes, 44));
-                            for (int i = 1; i < MAX_BONES; i++)
+                            entity.BonePositions = new Vector3[maxBoneIndex + 1];
+                            for (int i = 0; i <= maxBoneIndex; i++)
                             {
-                                byte[] singleBoneBytes = memory.ReadBytes(boneMatrixPtr + (i * 48), 48);
-                                if (singleBoneBytes != null && singleBoneBytes.Length == 48)
+                                float x = BitConverter.ToSingle(boneBytes, i * 48 + 12);
+                                float y = BitConverter.ToSingle(boneBytes, i * 48 + 28);
+                                float z = BitConverter.ToSingle(boneBytes, i * 48 + 44);
+                                if (!float.IsNaN(x)) // Chequeo de sanidad simple
                                 {
-                                    entity.BonePositions[i] = new Vector3(BitConverter.ToSingle(singleBoneBytes, 12), BitConverter.ToSingle(singleBoneBytes, 28), BitConverter.ToSingle(singleBoneBytes, 44));
+                                    entity.BonePositions[i] = new Vector3(x, y, z);
                                 }
-                                else break;
                             }
                         }
                     }

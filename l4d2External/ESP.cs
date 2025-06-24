@@ -238,7 +238,25 @@ namespace left4dead2Menu
             }
         };
 
-        // --- NUEVOS HELPERS PARA OBTENER HUESOS CLAVE ---
+
+        public static readonly Dictionary<string, HashSet<int>> ActiveBoneSets;
+
+        static ESP()
+        {
+            ActiveBoneSets = new Dictionary<string, HashSet<int>>();
+            foreach (var skeletonDef in SkeletonDefinitions)
+            {
+                var boneSet = new HashSet<int>();
+                var connections = skeletonDef.Value;
+                for (int i = 0; i < connections.GetLength(0); i++)
+                {
+                    boneSet.Add(connections[i, 0]);
+                    boneSet.Add(connections[i, 1]);
+                }
+                ActiveBoneSets.Add(skeletonDef.Key, boneSet);
+            }
+        }
+
         public static int GetHeadBoneIndex(string simpleName)
         {
             if (SkeletonDefinitions.TryGetValue(simpleName, out var connections) && connections.Length > 0)
