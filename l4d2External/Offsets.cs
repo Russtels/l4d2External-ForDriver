@@ -18,7 +18,7 @@ namespace l4d2External
 
         // Offsets de cliente
         public int localplayer = 0x726BD8;
-        public int entityList = 0x73A574 + 0x10;
+        public int entityList = 0x73A574;
 
         // Offsets de entidad
         public int Health = 0xEC;

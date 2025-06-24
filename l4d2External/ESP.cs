@@ -41,7 +41,7 @@ namespace left4dead2Menu
             { "Común", new int[,]
                 {
                     // Cabeza y Cuello
-                    { 30, 14 },
+                    
                     { 14, 13 },
 
                     // Torso (desde el cuello hasta la pelvis)
