@@ -5,6 +5,9 @@ namespace l4d2External
 {
     internal class Offsets
     {
+        // --- AÑADIR EL NUEVO OFFSET DE BONEMATRIX ---
+        public int BoneMatrix = 0x6C0;
+
         // --- OFFSETS DE VIEW MATRIX ACTUALIZADOS ---
         public int ViewMatrix = 0x601FDC;
         public int ViewMatrixOffset = 0x2E4;

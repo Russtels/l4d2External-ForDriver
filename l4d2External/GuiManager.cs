@@ -1,4 +1,5 @@
-﻿// GuiManager.cs (Versión Final Sincronizada)
+﻿// l4d2External/GuiManager.cs (Versión Final y Corregida)
+
 using ImGuiNET;
 using System.Numerics;
 
@@ -8,11 +9,10 @@ namespace left4dead2Menu
     {
         public void DrawMenuControls(
             // Aimbot
-            ref bool enableAimbot, ref float aimbotTargetZOffset, ref bool drawFovCircle,
-            ref float fovCircleVisualRadius, ref float aimbotSmoothness,
+            ref bool enableAimbot, ref float aimbotSmoothness,
             ref AimbotTarget aimbotTarget,
             ref bool aimbotOnBosses, ref bool aimbotOnSpecials, ref bool aimbotOnCommons, ref bool aimbotOnSurvivors,
-            // Nuevos para Aimbot Area
+            ref bool drawFovCircle, ref float fovCircleVisualRadius,
             ref bool enableAimbotArea, ref float aimbotAreaRadius, ref int aimbotAreaSegments, ref Vector4 aimbotAreaColor,
 
             // ESP
@@ -20,12 +20,16 @@ namespace left4dead2Menu
             ref bool espOnSpecials, ref Vector4 espColorSpecials,
             ref bool espOnCommons, ref Vector4 espColorCommons,
             ref bool espOnSurvivors, ref Vector4 espColorSurvivors,
-            ref bool espDrawHead, ref bool espDrawBody,
+            ref bool espDrawBones, ref bool espDrawSkeleton,
+
+            // Colores Personalizados
+            ref Vector4 colorNombreFill, ref Vector4 colorNombreBorde,
+            ref Vector4 colorCajaFill, ref Vector4 colorCajaBorde,
+            ref Vector4 colorEsqueletoFill, ref Vector4 colorEsqueletoBorde,
 
             // Others
             ref bool enableBunnyHop,
             ref bool enableMeleeArea, ref float meleeAreaRadius, ref int meleeAreaSegments, ref Vector4 meleeAreaColor,
-            // --- PARÁMETROS DE FILTRO MELEE ACTUALIZADOS ---
             ref bool meleeOnCommons,
             ref bool meleeOnHunter, ref bool meleeOnSmoker, ref bool meleeOnBoomer,
             ref bool meleeOnJockey, ref bool meleeOnSpitter, ref bool meleeOnCharger
@@ -38,41 +42,30 @@ namespace left4dead2Menu
                     ImGui.Checkbox("Habilitar Aimbot", ref enableAimbot);
                     if (enableAimbot)
                     {
-                        ImGui.SeparatorText("config del aimbot");
-                        ImGui.SliderFloat("Desplazamiento Z(arreglo en lo que saco el boneESP)", ref aimbotTargetZOffset, -50.0f, 50.0f, "%.1f u");
+                        ImGui.SeparatorText("Configuración General");
                         ImGui.SliderFloat("Suavizado", ref aimbotSmoothness, 0.01f, 1.0f, "%.2f");
 
-                        ImGui.SeparatorText("Hitboxes");
+                        ImGui.SeparatorText("Objetivo");
                         int aimbotTargetInt = (int)aimbotTarget;
-                        if (ImGui.RadioButton("Cabeza", ref aimbotTargetInt, (int)AimbotTarget.Head))
-                        {
-                            aimbotTarget = AimbotTarget.Head;
-                        }
+                        if (ImGui.RadioButton("Cabeza (Precisa)", ref aimbotTargetInt, (int)AimbotTarget.Head)) { aimbotTarget = AimbotTarget.Head; }
                         ImGui.SameLine();
-                        if (ImGui.RadioButton("Pecho", ref aimbotTargetInt, (int)AimbotTarget.Chest))
-                        {
-                            aimbotTarget = AimbotTarget.Chest;
-                        }
+                        if (ImGui.RadioButton("Pecho", ref aimbotTargetInt, (int)AimbotTarget.Chest)) { aimbotTarget = AimbotTarget.Chest; }
 
-                        ImGui.SeparatorText("Objetivos");
+                        ImGui.SeparatorText("Filtro de Entidades");
                         ImGui.Checkbox("Jefes (Tank, Witch)", ref aimbotOnBosses);
-                        ImGui.Checkbox("Especiales(Charger, Jockey, Smoker, Boomer , Spitter, Hunter)", ref aimbotOnSpecials);
-                        ImGui.Checkbox("Commons", ref aimbotOnCommons);
+                        ImGui.Checkbox("Especiales", ref aimbotOnSpecials);
+                        ImGui.Checkbox("Comunes", ref aimbotOnCommons);
                         ImGui.Checkbox("Supervivientes", ref aimbotOnSurvivors);
 
-                        ImGui.SeparatorText("Aimbot FOV");
-                        ImGui.Checkbox("Show FOV", ref drawFovCircle);
+                        ImGui.SeparatorText("Visualización de Rango");
+                        ImGui.Checkbox("Mostrar FOV (Modo Círculo)", ref drawFovCircle);
                         ImGui.SliderFloat("Radio del FOV", ref fovCircleVisualRadius, 10.0f, 500.0f, "%.0f px");
-
-
-                        // --- NUEVOS CONTROLES PARA AIMBOT AREA ---
-                        ImGui.SeparatorText("Área de Aimbot (Modo Radio)");
-                        ImGui.Checkbox("Habilitar Área de Aimbot", ref enableAimbotArea);
+                        ImGui.Checkbox("Habilitar Área de Aimbot (Modo Radio 3D)", ref enableAimbotArea);
                         if (enableAimbotArea)
                         {
                             ImGui.SliderFloat("Radio del Área Aimbot", ref aimbotAreaRadius, 50.0f, 1000.0f, "%.0f u");
-                            ImGui.SliderInt("Segmentos (Aimbot)", ref aimbotAreaSegments, 12, 100);
-                            ImGui.ColorEdit4("Color (Aimbot)", ref aimbotAreaColor, ImGuiColorEditFlags.NoInputs);
+                            ImGui.SliderInt("Segmentos (Área)", ref aimbotAreaSegments, 12, 100);
+                            ImGui.ColorEdit4("Color (Área)", ref aimbotAreaColor, ImGuiColorEditFlags.NoInputs);
                         }
                     }
                     ImGui.EndTabItem();
@@ -83,27 +76,23 @@ namespace left4dead2Menu
                     ImGui.Checkbox("Habilitar ESP", ref enableEsp);
                     if (enableEsp)
                     {
-                        ImGui.SeparatorText("Visibilidad y Colores");
+                        ImGui.SeparatorText("Visibilidad por Tipo");
+                        ImGui.Checkbox("Jefes", ref espOnBosses); ImGui.SameLine(); ImGui.ColorEdit4("##Color Jefes", ref espColorBosses, ImGuiColorEditFlags.NoInputs);
+                        ImGui.Checkbox("Especiales", ref espOnSpecials); ImGui.SameLine(); ImGui.ColorEdit4("##Color Especiales", ref espColorSpecials, ImGuiColorEditFlags.NoInputs);
+                        ImGui.Checkbox("Comunes", ref espOnCommons); ImGui.SameLine(); ImGui.ColorEdit4("##Color Comunes", ref espColorCommons, ImGuiColorEditFlags.NoInputs);
+                        ImGui.Checkbox("Supervivientes", ref espOnSurvivors); ImGui.SameLine(); ImGui.ColorEdit4("##Color Supervivientes", ref espColorSurvivors, ImGuiColorEditFlags.NoInputs);
 
-                        ImGui.Checkbox("Jefes", ref espOnBosses);
-                        ImGui.SameLine();
-                        ImGui.ColorEdit4("##Color Jefes", ref espColorBosses, ImGuiColorEditFlags.NoInputs);
+                        ImGui.SeparatorText("Componentes Visuales");
+                        ImGui.Checkbox("Dibujar Esqueleto", ref espDrawSkeleton);
+                        ImGui.Checkbox("Dibujar Huesos (Debug)", ref espDrawBones);
 
-                        ImGui.Checkbox("Especiales", ref espOnSpecials);
-                        ImGui.SameLine();
-                        ImGui.ColorEdit4("##Color Especiales", ref espColorSpecials, ImGuiColorEditFlags.NoInputs);
-
-                        ImGui.Checkbox("Comunes", ref espOnCommons);
-                        ImGui.SameLine();
-                        ImGui.ColorEdit4("##Color Comunes", ref espColorCommons, ImGuiColorEditFlags.NoInputs);
-
-                        ImGui.Checkbox("Supervivientes", ref espOnSurvivors);
-                        ImGui.SameLine();
-                        ImGui.ColorEdit4("##Color Supervivientes", ref espColorSurvivors, ImGuiColorEditFlags.NoInputs);
-
-                        ImGui.SeparatorText("Huesos (Improvisado)");
-                        ImGui.Checkbox("Dibujar Cabeza", ref espDrawHead);
-                        ImGui.Checkbox("Dibujar Cuerpo", ref espDrawBody);
+                        ImGui.SeparatorText("Colores Personalizados");
+                        ImGui.ColorEdit4("Nombre Relleno", ref colorNombreFill);
+                        ImGui.ColorEdit4("Nombre Borde", ref colorNombreBorde);
+                        ImGui.ColorEdit4("Caja Relleno", ref colorCajaFill);
+                        ImGui.ColorEdit4("Caja Borde", ref colorCajaBorde);
+                        ImGui.ColorEdit4("Esqueleto Relleno", ref colorEsqueletoFill);
+                        ImGui.ColorEdit4("Esqueleto Borde", ref colorEsqueletoBorde);
                     }
                     ImGui.EndTabItem();
                 }
@@ -121,32 +110,21 @@ namespace left4dead2Menu
                         ImGui.SliderInt("Segmentos (Melee)", ref meleeAreaSegments, 12, 100);
                         ImGui.ColorEdit4("Color (Melee)", ref meleeAreaColor, ImGuiColorEditFlags.NoInputs);
 
-                        // --- CONTROLES DE FILTRO REEMPLAZADOS ---
                         ImGui.SeparatorText("Objetivos Melee");
                         ImGui.Checkbox("Comunes", ref meleeOnCommons);
-
-                        // Fila 1 de Especiales
                         ImGui.Checkbox("Hunter", ref meleeOnHunter);
                         ImGui.SameLine();
                         ImGui.Checkbox("Smoker", ref meleeOnSmoker);
                         ImGui.SameLine();
                         ImGui.Checkbox("Boomer", ref meleeOnBoomer);
-
-                        // Fila 2 de Especiales
                         ImGui.Checkbox("Jockey", ref meleeOnJockey);
                         ImGui.SameLine();
                         ImGui.Checkbox("Spitter", ref meleeOnSpitter);
                         ImGui.SameLine();
                         ImGui.Checkbox("Charger", ref meleeOnCharger);
                     }
-
                     ImGui.EndTabItem();
                 }
-
-                ImGui.EndTabItem();
-
-
-
             }
             ImGui.EndTabBar();
         }

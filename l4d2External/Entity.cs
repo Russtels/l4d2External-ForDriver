@@ -1,4 +1,5 @@
-﻿// Entity.cs (Corregido)
+﻿// l4d2External/Entity.cs
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,9 +21,12 @@ namespace l4d2External
         public Vector3 abs { get; set; }
         public float magnitude { get; set; }
         public string? SimpleName { get; set; }
-
-        // Solución para la advertencia CS8618: La propiedad ahora puede ser nula.
         public string? modelName { get; set; }
+
+        // <<< NUEVA PROPIEDAD >>>
+        // Almacenará las coordenadas 3D de cada hueso.
+        public Vector3[]? BonePositions { get; set; }
+
         public Entity()
         {
             address = IntPtr.Zero;

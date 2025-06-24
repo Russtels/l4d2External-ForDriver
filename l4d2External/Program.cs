@@ -1,4 +1,5 @@
-﻿// Program.cs (Corregido y Final)
+﻿// l4d2External/Program.cs (Versión Final y Corregida)
+
 using ClickableTransparentOverlay;
 using ImGuiNET;
 using l4d2External;
@@ -7,6 +8,7 @@ using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System;
 
 namespace left4dead2Menu
 {
@@ -31,10 +33,8 @@ namespace left4dead2Menu
 
         private bool hasPerformedMeleeShove = false;
 
-        // --- SOLUCIÓN: AÑADIR LA DECLARACIÓN DE LA VARIABLE FALTANTE ---
         // --- Configuración Aimbot ---
         private bool enableAimbot = true;
-        private float aimbotTargetZOffset = 0f;
         private float aimbotSmoothness = 0.1f;
         private AimbotTarget aimbotTargetSelection = AimbotTarget.Head;
         private bool aimbotOnBosses = true;
@@ -43,7 +43,6 @@ namespace left4dead2Menu
         private bool aimbotOnSurvivors = false;
         private bool drawFovCircle = true;
         private float fovCircleVisualRadius = 100.0f;
-        private Vector4 fovCircleColor = new Vector4(1, 1, 1, 0.5f);
         private readonly int specialAimbotKey = 0x06;
         private bool enableAimbotArea = false;
         private float aimbotAreaRadius = 300.0f;
@@ -60,8 +59,14 @@ namespace left4dead2Menu
         private Vector4 espColorSpecials = new Vector4(1, 0.6f, 0, 1);
         private Vector4 espColorCommons = new Vector4(0.8f, 0.8f, 0.8f, 0.7f);
         private Vector4 espColorSurvivors = new Vector4(0.2f, 0.8f, 1, 1);
-        private bool espDrawHead = true;
-        private bool espDrawBody = true;
+        private bool espDrawBones = false;
+        private bool espDrawSkeleton = true;
+        private Vector4 colorNombreFill = new Vector4(1, 1, 1, 1);
+        private Vector4 colorNombreBorde = new Vector4(0, 0, 0, 1);
+        private Vector4 colorCajaFill = new Vector4(0, 0, 0, 0.3f);
+        private Vector4 colorCajaBorde = new Vector4(1, 1, 1, 1);
+        private Vector4 colorEsqueletoFill = new Vector4(1, 1, 1, 1);
+        private Vector4 colorEsqueletoBorde = new Vector4(0, 0, 0, 1);
 
         // --- Configuración Others ---
         private bool enableBunnyHop = true;
@@ -79,26 +84,19 @@ namespace left4dead2Menu
 
         public Program()
         {
-            // La inicialización ahora puede fallar, así que la encapsulamos
-            try
-            {
-                memory = new GameMemory("left4dead2");
-            }
+            try { memory = new GameMemory("left4dead2"); }
             catch (Exception ex)
             {
-                // Si GameMemory falla (ej. driver no cargado, juego no abierto), el programa termina.
                 Console.WriteLine($"Fallo en inicialización de Program: {ex.Message}");
                 Environment.Exit(1);
             }
         }
         private void InitializeLogicModules()
         {
-            // clientModule y engineModule ahora vienen de 'memory'
             clientModule = memory.client;
             engineModule = memory.engine;
             if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero) return;
 
-            // Pasamos el objeto 'memory' en lugar de 'swed'
             entityManager = new EntityManager(memory, offsets, Encoding.ASCII);
             aimbotController = new AimbotController();
             guiManager = new GuiManager();
@@ -115,16 +113,19 @@ namespace left4dead2Menu
             ImGui.Begin("l4d2 external by Russ");
 
             guiManager.DrawMenuControls(
-                // Aimbot
-                ref enableAimbot, ref aimbotTargetZOffset, ref drawFovCircle, ref fovCircleVisualRadius, ref aimbotSmoothness,
+                ref enableAimbot, ref aimbotSmoothness,
                 ref aimbotTargetSelection,
                 ref aimbotOnBosses, ref aimbotOnSpecials, ref aimbotOnCommons, ref aimbotOnSurvivors,
+                ref drawFovCircle, ref fovCircleVisualRadius,
                 ref enableAimbotArea, ref aimbotAreaRadius, ref aimbotAreaSegments, ref aimbotAreaColor,
-                // ESP
-                ref enableEsp, ref espOnBosses, ref espColorBosses, ref espOnSpecials, ref espColorSpecials,
-                ref espOnCommons, ref espColorCommons, ref espOnSurvivors, ref espColorSurvivors,
-                ref espDrawHead, ref espDrawBody,
-                // Others
+                ref enableEsp, ref espOnBosses, ref espColorBosses,
+                ref espOnSpecials, ref espColorSpecials,
+                ref espOnCommons, ref espColorCommons,
+                ref espOnSurvivors, ref espColorSurvivors,
+                ref espDrawBones, ref espDrawSkeleton,
+                ref colorNombreFill, ref colorNombreBorde,
+                ref colorCajaFill, ref colorCajaBorde,
+                ref colorEsqueletoFill, ref colorEsqueletoBorde,
                 ref enableBunnyHop,
                 ref enableMeleeArea, ref meleeAreaRadius, ref meleeAreaSegments, ref meleeAreaColor,
                 ref meleeOnCommons,
@@ -137,10 +138,8 @@ namespace left4dead2Menu
             {
                 renderer.UpdateViewMatrix();
 
-                // La variable 'currentAimbotTarget' ya es accesible aquí
                 if (enableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0)
                 {
-                    // 1. Construir lista de objetivos potenciales
                     var aimTargets = new List<Entity>();
                     lock (_listLock)
                     {
@@ -150,15 +149,12 @@ namespace left4dead2Menu
                         if (aimbotOnSurvivors) aimTargets.AddRange(survivors);
                     }
 
-                    // 2. Encontrar el mejor objetivo
                     if (aimTargets.Count > 0)
                     {
-                        var bestTarget = aimbotController.FindBestTarget(localPlayer, aimTargets, aimbotTargetSelection, enableAimbotArea, aimbotAreaRadius, fovCircleVisualRadius, renderer, screenWidth, screenHeight);
-
-                        // 3. Actuar sobre el objetivo si se encontró uno
+                        var bestTarget = aimbotController.FindBestTarget(localPlayer, aimTargets, enableAimbotArea, aimbotAreaRadius, fovCircleVisualRadius, renderer, screenWidth, screenHeight);
                         if (bestTarget != null)
                         {
-                            aimbotController.ExecuteMouseAimbot(bestTarget, localPlayer, aimbotTargetSelection, aimbotSmoothness, renderer, screenWidth, screenHeight);
+                            aimbotController.ExecuteMouseAimbot(bestTarget, aimbotTargetSelection, aimbotSmoothness, renderer, screenWidth, screenHeight);
                         }
                     }
                 }
@@ -167,15 +163,13 @@ namespace left4dead2Menu
                 {
                     areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, meleeAreaRadius, meleeAreaSegments, meleeAreaColor);
                 }
-
                 if (enableAimbotArea && localPlayer.address != IntPtr.Zero)
                 {
                     areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, aimbotAreaRadius, aimbotAreaSegments, aimbotAreaColor);
                 }
-
                 if (enableAimbot && drawFovCircle && !enableAimbotArea)
                 {
-                    renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, fovCircleVisualRadius, fovCircleColor);
+                    renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, fovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
                 }
                 if (enableEsp)
                 {
@@ -192,13 +186,15 @@ namespace left4dead2Menu
                         commonSnapshot, specialSnapshot, bossSnapshot, survivorSnapshot,
                         espOnBosses, espColorBosses, espOnSpecials, espColorSpecials,
                         espOnCommons, espColorCommons, espOnSurvivors, espColorSurvivors,
-                        espDrawHead, espDrawBody
+                        espDrawBones, espDrawSkeleton,
+                        colorNombreFill, colorNombreBorde,
+                        colorCajaFill, colorCajaBorde,
+                        colorEsqueletoFill, colorEsqueletoBorde
                     );
                 }
             }
         }
 
-        // --- MainLogicLoop AHORA ES MÁS SIMPLE ---
         void MainLogicLoop()
         {
             InitializeLogicModules();
@@ -206,7 +202,6 @@ namespace left4dead2Menu
 
             while (true)
             {
-                // Solo se encarga de actualizar entidades y lógicas que no dependen de la UI
                 lock (_listLock)
                 {
                     entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, clientModule);
@@ -222,7 +217,6 @@ namespace left4dead2Menu
                         lock (_listLock)
                         {
                             if (meleeOnCommons) meleeTargets.AddRange(commonInfected);
-
                             foreach (var special in specialInfected)
                             {
                                 switch (special.SimpleName)
@@ -236,9 +230,7 @@ namespace left4dead2Menu
                                 }
                             }
                         }
-
                         bool enemyInMeleeRange = meleeTargets.Any(e => e.health > 0 && e.magnitude <= meleeAreaRadius);
-
                         if (enemyInMeleeRange && !hasPerformedMeleeShove)
                         {
                             NativeMethods.SimulateRightClick();
@@ -250,7 +242,6 @@ namespace left4dead2Menu
                         }
                     }
                 }
-
                 Thread.Sleep(5);
             }
         }
@@ -268,7 +259,6 @@ namespace left4dead2Menu
             }
             catch (Exception ex)
             {
-                // Si algo falla, la consola permanecerá abierta mostrando el error.
                 Console.WriteLine($"\n--- ERROR CRÍTICO ---\n");
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine("\nPresiona cualquier tecla para salir...");

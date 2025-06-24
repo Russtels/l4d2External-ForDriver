@@ -1,4 +1,5 @@
-﻿// Renderer.cs (Versión Final con Lectura Manual de Matriz)
+﻿// l4d2External/Renderer.cs (Corregido con Bounding Box Preciso)
+
 using ImGuiNET;
 using System.Numerics;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace left4dead2Menu
         private readonly Offsets offsets;
         private Matrix4x4 viewMatrix;
 
-        public Renderer(GameMemory memory, IntPtr engine, Offsets offsets) // Cambiado de Swed a GameMemory
+        public Renderer(GameMemory memory, IntPtr engine, Offsets offsets)
         {
             this.memory = memory;
             this.engine = engine;
@@ -77,50 +78,117 @@ namespace left4dead2Menu
             List<Entity> common, List<Entity> special, List<Entity> bosses, List<Entity> survivors,
             bool espOnBosses, Vector4 espColorBosses, bool espOnSpecials, Vector4 espColorSpecials,
             bool espOnCommons, Vector4 espColorCommons, bool espOnSurvivors, Vector4 espColorSurvivors,
-            // Nuevos parámetros para el control del bonematrix
-            bool espDrawHead, bool espDrawBody)
+            bool espDrawBones, bool espDrawSkeleton,
+            // Colores
+            Vector4 colorNombreFill, Vector4 colorNombreBorde,
+            Vector4 colorCajaFill, Vector4 colorCajaBorde,
+            Vector4 colorEsqueletoFill, Vector4 colorEsqueletoBorde)
         {
-            if (espOnCommons) RenderESPForEntities(drawList, common, espColorCommons, screenWidth, screenHeight, 50, espDrawHead, espDrawBody);
-            if (espOnSpecials) RenderESPForEntities(drawList, special, espColorSpecials, screenWidth, screenHeight, 300, espDrawHead, espDrawBody);
-            if (espOnBosses) RenderESPForEntities(drawList, bosses, espColorBosses, screenWidth, screenHeight, 6000, espDrawHead, espDrawBody);
-            if (espOnSurvivors) RenderESPForEntities(drawList, survivors, espColorSurvivors, screenWidth, screenHeight, 100, espDrawHead, espDrawBody);
+            if (espOnCommons) RenderESPForEntities(drawList, common, espColorCommons, screenWidth, screenHeight, 50, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
+            if (espOnSpecials) RenderESPForEntities(drawList, special, espColorSpecials, screenWidth, screenHeight, 300, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
+            if (espOnBosses) RenderESPForEntities(drawList, bosses, espColorBosses, screenWidth, screenHeight, 6000, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
+            if (espOnSurvivors) RenderESPForEntities(drawList, survivors, espColorSurvivors, screenWidth, screenHeight, 100, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
         }
 
-        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 color, float screenWidth, float screenHeight, int maxHealth, bool drawHead, bool drawBody)
+        private void RenderBonesForEntity(ImDrawListPtr drawList, Entity entity, uint color, float screenWidth, float screenHeight)
+        {
+            if (entity.BonePositions == null) return;
+
+            for (int i = 0; i < entity.BonePositions.Length; i++)
+            {
+                if (entity.BonePositions[i] == Vector3.Zero) continue;
+
+                if (WorldToScreen(entity.BonePositions[i], out Vector2 screenPos, screenWidth, screenHeight))
+                {
+                    drawList.AddText(screenPos, color, i.ToString());
+                }
+            }
+        }
+
+        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 typeColor, float screenWidth, float screenHeight, int maxHealth, bool drawBones, bool drawSkeleton,
+    Vector4 vNombreFill, Vector4 vNombreBorde, Vector4 vCajaFill, Vector4 vCajaBorde, Vector4 vEsqueletoFill, Vector4 vEsqueletoBorde)
         {
             if (entities == null) return;
-            uint uintColor = ImGui.GetColorU32(color);
+            uint cNombreFill = ImGui.GetColorU32(vNombreFill);
+            uint cNombreBorde = ImGui.GetColorU32(vNombreBorde);
+            uint cCajaFill = ImGui.GetColorU32(vCajaFill);
+            uint cCajaBorde = ImGui.GetColorU32(vCajaBorde);
+            uint cEsqueletoFill = ImGui.GetColorU32(vEsqueletoFill);
+            uint cEsqueletoBorde = ImGui.GetColorU32(vEsqueletoBorde);
+            uint cType = ImGui.GetColorU32(typeColor);
 
             foreach (var entity in entities)
             {
-                if (entity == null) continue;
+                if (entity?.BonePositions == null || string.IsNullOrEmpty(entity.SimpleName)) continue;
 
-                if (WorldToScreen(entity.abs, out Vector2 screenHead, screenWidth, screenHeight) &&
-                    WorldToScreen(entity.origin, out Vector2 screenFeet, screenWidth, screenHeight))
+                if (!ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections) || connections.Length == 0)
                 {
-                    if (screenFeet.X < 0 || screenFeet.X > screenWidth || screenHead.Y < 0 || screenFeet.Y > screenHeight) continue;
+                    continue;
+                }
 
-                    float height = Math.Abs(screenHead.Y - screenFeet.Y);
-                    if (height <= 2 || height > screenHeight) continue;
+                var activeBoneIndices = new HashSet<int>();
+                for (int i = 0; i < connections.GetLength(0); i++)
+                {
+                    activeBoneIndices.Add(connections[i, 0]);
+                    activeBoneIndices.Add(connections[i, 1]);
+                }
 
-                    float width = height / 2.1f;
-                    Vector2 topLeft = new Vector2(screenFeet.X - width / 2, screenHead.Y);
-                    Vector2 bottomRight = new Vector2(screenFeet.X + width / 2, screenFeet.Y);
+                float minX = float.MaxValue, minY = float.MaxValue;
+                float maxX = float.MinValue, maxY = float.MinValue;
+                bool isAnyBoneOnScreen = false;
 
-                    ESP.DrawName(drawList, entity.SimpleName, topLeft, width, uintColor);
-                    ESP.DrawBox(drawList, topLeft, bottomRight, uintColor);
+                foreach (int boneIndex in activeBoneIndices)
+                {
+                    if (boneIndex >= entity.BonePositions.Length) continue;
 
-                    // --- LLAMADAS A LOS NUEVOS MÉTODOS DE DIBUJO ---
-                    if (drawHead)
+                    Vector3 bonePos = entity.BonePositions[boneIndex];
+                    if (bonePos == Vector3.Zero) continue;
+
+                    if (WorldToScreen(bonePos, out Vector2 screenPos, screenWidth, screenHeight))
                     {
-                        ESP.DrawHeadBone(drawList, topLeft, width, height, uintColor);
+                        isAnyBoneOnScreen = true;
+                        minX = Math.Min(minX, screenPos.X);
+                        minY = Math.Min(minY, screenPos.Y);
+                        maxX = Math.Max(maxX, screenPos.X);
+                        maxY = Math.Max(maxY, screenPos.Y);
                     }
-                    if (drawBody)
-                    {
-                        ESP.DrawBodyBone(drawList, topLeft, width, height, uintColor);
-                    }
+                }
 
-                    ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
+                if (!isAnyBoneOnScreen) continue;
+
+                Vector2 topLeft = new Vector2(minX - 5, minY - 5);
+                Vector2 bottomRight = new Vector2(maxX + 5, maxY + 5);
+                float width = bottomRight.X - topLeft.X;
+
+                // --- DIBUJADO DE COMPONENTES ---
+
+                if (drawSkeleton)
+                {
+                    ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde);
+                }
+
+                // <<< INICIO DEL CÓDIGO AÑADIDO PARA EL CÍRCULO DE LA CABEZA >>>
+                int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
+                if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
+                {
+                    Vector3 headPos3D = entity.BonePositions[headBoneIndex];
+                    if (WorldToScreen(headPos3D, out Vector2 headPos2D, screenWidth, screenHeight))
+                    {
+                        // Dibuja el círculo en la posición real de la cabeza
+                        float radius = Math.Max(4, width / 12); // Un radio dinámico con un tamaño mínimo
+                        drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
+                        drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
+                    }
+                }
+                // <<< FIN DEL CÓDIGO AÑADIDO >>>
+
+                ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
+                ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
+                ESP.DrawName(drawList, entity.SimpleName, topLeft, width, cNombreFill, cNombreBorde);
+
+                if (drawBones)
+                {
+                    RenderBonesForEntity(drawList, entity, cType, screenWidth, screenHeight);
                 }
             }
         }
