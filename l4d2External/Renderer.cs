@@ -116,7 +116,6 @@ namespace left4dead2Menu
         {
             if (entities == null) return;
 
-            // Convertir colores a formato U32 una sola vez
             uint cNombreFill = ImGui.GetColorU32(vNombreFill);
             uint cNombreBorde = ImGui.GetColorU32(vNombreBorde);
             uint cCajaFill = ImGui.GetColorU32(vCajaFill);
@@ -132,19 +131,18 @@ namespace left4dead2Menu
                 Vector2 topLeft = Vector2.Zero, bottomRight = Vector2.Zero;
                 bool isBoxOnScreen = false;
 
-                // --- PASO 1: Calcular el Bounding Box (Caja contenedora) ---
-                // Se intenta primero con los huesos por ser más preciso.
-                if (entity.BonePositions != null && ESP.ActiveBoneSets.ContainsKey(entity.SimpleName))
+                // --- PASO 1: Calcular Bounding Box ---
+                if (ESP.IsSkeletonComplete(entity)) // Se usa la nueva función para priorizar cajas precisas
                 {
                     float minX = float.MaxValue, minY = float.MaxValue;
                     float maxX = float.MinValue, maxY = float.MinValue;
 
                     foreach (int boneIndex in ESP.ActiveBoneSets[entity.SimpleName])
                     {
-                        if (boneIndex >= entity.BonePositions.Length || entity.BonePositions[boneIndex] == Vector3.Zero) continue;
+                        // No es necesario volver a comprobar si el hueso es cero, IsSkeletonComplete ya lo hizo.
                         if (WorldToScreen(entity.BonePositions[boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
                         {
-                            isBoxOnScreen = true; // Al menos un hueso es visible
+                            isBoxOnScreen = true;
                             minX = Math.Min(minX, screenPos.X);
                             minY = Math.Min(minY, screenPos.Y);
                             maxX = Math.Max(maxX, screenPos.X);
@@ -159,8 +157,7 @@ namespace left4dead2Menu
                     }
                 }
 
-                // Si no se pudo crear la caja con los huesos (o la entidad no tiene), se usa el método de fallback.
-                if (!isBoxOnScreen)
+                if (!isBoxOnScreen) // Fallback si el esqueleto no es completo o no existe
                 {
                     if (WorldToScreen(entity.abs, out Vector2 screenHead, screenWidth, screenHeight) &&
                         WorldToScreen(entity.origin, out Vector2 screenFeet, screenWidth, screenHeight))
@@ -176,38 +173,45 @@ namespace left4dead2Menu
                     }
                 }
 
-
-                // --- PASO 2: Renderizar los componentes si la caja es válida ---
+                // --- PASO 2: Renderizar si la caja es válida y tiene un tamaño razonable ---
                 if (isBoxOnScreen)
                 {
-                    float width = bottomRight.X - topLeft.X;
+                    float boxWidth = bottomRight.X - topLeft.X;
+                    float boxHeight = bottomRight.Y - topLeft.Y;
 
-                    // Dibuja los elementos base del ESP (Caja, Vida, Nombre)
+                    // <<< NUEVO FILTRO DE TAMAÑO >>>
+                    // Si la caja es más grande que la pantalla, probablemente es un glitch. Se ignora.
+                    if (boxWidth <= 0 || boxHeight <= 0 || boxWidth > screenWidth || boxHeight > screenHeight)
+                    {
+                        continue;
+                    }
+
+                    // --- Dibuja los elementos base del ESP (Caja, Vida, Nombre) ---
                     ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
                     ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
-                    ESP.DrawName(drawList, entity.SimpleName, topLeft, width, cNombreFill, cNombreBorde);
+                    ESP.DrawName(drawList, entity.SimpleName, topLeft, boxWidth, cNombreFill, cNombreBorde);
 
                     // --- PASO 3: Renderizar elementos opcionales ---
 
-                    // Dibuja el esqueleto y la cabeza SÓLO si está activado en el menú
-                    if (drawSkeleton && entity.BonePositions != null && ESP.SkeletonDefinitions.ContainsKey(entity.SimpleName))
+                    // <<< NUEVO FILTRO DE ESQUELETO COMPLETO >>>
+                    // Solo dibuja si la opción está activa Y el esqueleto de la entidad es válido y completo.
+                    if (drawSkeleton && ESP.IsSkeletonComplete(entity))
                     {
-                        ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde);
+                        // Se pasa un valor máximo para la longitud de los huesos (ej. 300 píxeles)
+                        ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde, 300f);
 
-                        // El Headshot ESP ahora está anidado. Solo se dibuja si el esqueleto está activo.
                         int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
-                        if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
+                        if (headBoneIndex != -1) // No es necesario comprobar BonePositions.Length, IsSkeletonComplete ya lo hizo
                         {
                             if (WorldToScreen(entity.BonePositions[headBoneIndex], out Vector2 headPos2D, screenWidth, screenHeight))
                             {
-                                float radius = Math.Max(4, Math.Min(15, width / 12));
+                                float radius = Math.Max(4, Math.Min(15, boxWidth / 12));
                                 drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
                                 drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
                             }
                         }
                     }
 
-                    // Dibuja los índices de los huesos si está activado
                     if (drawBones)
                     {
                         RenderBonesForEntity(drawList, entity, cType, screenWidth, screenHeight);

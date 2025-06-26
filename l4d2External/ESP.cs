@@ -241,6 +241,26 @@ namespace left4dead2Menu
 
         public static readonly Dictionary<string, HashSet<int>> ActiveBoneSets;
 
+        public static bool IsSkeletonComplete(Entity entity)
+        {
+            if (entity.BonePositions == null || !ActiveBoneSets.TryGetValue(entity.SimpleName, out var requiredBones))
+            {
+                return false; // No hay datos de huesos o no hay definición para este modelo
+            }
+
+            // Itera sobre cada hueso que DEBERÍA existir para este modelo
+            foreach (int boneIndex in requiredBones)
+            {
+                // Si un hueso está fuera de los límites o es una coordenada (0,0,0), el esqueleto está incompleto.
+                if (boneIndex >= entity.BonePositions.Length || entity.BonePositions[boneIndex] == Vector3.Zero)
+                {
+                    return false; // Se encontró un hueso faltante o inválido
+                }
+            }
+
+            return true; // Todos los huesos requeridos están presentes y son válidos
+        }
+
         static ESP()
         {
             ActiveBoneSets = new Dictionary<string, HashSet<int>>();
@@ -278,8 +298,9 @@ namespace left4dead2Menu
 
         // --- FUNCIONES DE DIBUJO ACTUALIZADAS ---
 
-        public static void DrawSkeleton(ImDrawListPtr drawList, Entity entity, Renderer renderer, float screenWidth, float screenHeight, uint innerColor, uint borderColor)
+        public static void DrawSkeleton(ImDrawListPtr drawList, Entity entity, Renderer renderer, float screenWidth, float screenHeight, uint innerColor, uint borderColor, float maxBoneLength)
         {
+            // La comprobación inicial no cambia
             if (entity.BonePositions == null || !SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections) || connections.Length == 0) return;
 
             for (int i = 0; i < connections.GetLength(0); i++)
@@ -294,10 +315,13 @@ namespace left4dead2Menu
                 if (renderer.WorldToScreen(entity.BonePositions[boneIndex1], out Vector2 screenPos1, screenWidth, screenHeight) &&
                     renderer.WorldToScreen(entity.BonePositions[boneIndex2], out Vector2 screenPos2, screenWidth, screenHeight))
                 {
-                    // Dibuja el borde (más grueso)
-                    drawList.AddLine(screenPos1, screenPos2, borderColor, 3.0f);
-                    // Dibuja el relleno (más delgado, encima)
-                    drawList.AddLine(screenPos1, screenPos2, innerColor, 1.5f);
+                    // <<< NUEVA COMPROBACIÓN >>>
+                    // Solo dibuja la línea si la distancia en pantalla es menor que el máximo permitido.
+                    if (Vector2.Distance(screenPos1, screenPos2) < maxBoneLength)
+                    {
+                        drawList.AddLine(screenPos1, screenPos2, borderColor, 3.0f);
+                        drawList.AddLine(screenPos1, screenPos2, innerColor, 1.5f);
+                    }
                 }
             }
         }
