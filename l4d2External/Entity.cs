@@ -22,6 +22,8 @@ namespace l4d2External
         public float magnitude { get; set; }
         public string? SimpleName { get; set; }
         public string? modelName { get; set; }
+        public int TeamNum { get; set; }
+
 
         // <<< NUEVA PROPIEDAD >>>
         // Almacenará las coordenadas 3D de cada hueso.

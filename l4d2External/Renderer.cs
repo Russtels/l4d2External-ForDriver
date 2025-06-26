@@ -105,10 +105,18 @@ namespace left4dead2Menu
             }
         }
 
+        // l4d2External/Renderer.cs
+
+        // Reemplaza este método completo
+        // l4d2External/Renderer.cs
+
+        // Reemplaza este método completo
         private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 typeColor, float screenWidth, float screenHeight, int maxHealth, bool drawBones, bool drawSkeleton,
-    Vector4 vNombreFill, Vector4 vNombreBorde, Vector4 vCajaFill, Vector4 vCajaBorde, Vector4 vEsqueletoFill, Vector4 vEsqueletoBorde)
+            Vector4 vNombreFill, Vector4 vNombreBorde, Vector4 vCajaFill, Vector4 vCajaBorde, Vector4 vEsqueletoFill, Vector4 vEsqueletoBorde)
         {
             if (entities == null) return;
+
+            // Convertir colores a formato U32 una sola vez
             uint cNombreFill = ImGui.GetColorU32(vNombreFill);
             uint cNombreBorde = ImGui.GetColorU32(vNombreBorde);
             uint cCajaFill = ImGui.GetColorU32(vCajaFill);
@@ -119,64 +127,91 @@ namespace left4dead2Menu
 
             foreach (var entity in entities)
             {
-                if (entity?.BonePositions == null || string.IsNullOrEmpty(entity.SimpleName)) continue;
+                if (entity == null) continue;
 
-                // --- OPTIMIZACIÓN: Usar el conjunto de huesos pre-calculado ---
-                if (!ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var activeBoneIndices))
+                Vector2 topLeft = Vector2.Zero, bottomRight = Vector2.Zero;
+                bool isBoxOnScreen = false;
+
+                // --- PASO 1: Calcular el Bounding Box (Caja contenedora) ---
+                // Se intenta primero con los huesos por ser más preciso.
+                if (entity.BonePositions != null && ESP.ActiveBoneSets.ContainsKey(entity.SimpleName))
                 {
-                    continue; // No hay esqueleto definido para esta entidad
-                }
+                    float minX = float.MaxValue, minY = float.MaxValue;
+                    float maxX = float.MinValue, maxY = float.MinValue;
 
-                float minX = float.MaxValue, minY = float.MaxValue;
-                float maxX = float.MinValue, maxY = float.MinValue;
-                bool isAnyBoneOnScreen = false;
-
-                foreach (int boneIndex in activeBoneIndices)
-                {
-                    if (boneIndex >= entity.BonePositions.Length) continue;
-                    Vector3 bonePos = entity.BonePositions[boneIndex];
-                    if (bonePos == Vector3.Zero) continue;
-
-                    if (WorldToScreen(bonePos, out Vector2 screenPos, screenWidth, screenHeight))
+                    foreach (int boneIndex in ESP.ActiveBoneSets[entity.SimpleName])
                     {
-                        isAnyBoneOnScreen = true;
-                        minX = Math.Min(minX, screenPos.X);
-                        minY = Math.Min(minY, screenPos.Y);
-                        maxX = Math.Max(maxX, screenPos.X);
-                        maxY = Math.Max(maxY, screenPos.Y);
+                        if (boneIndex >= entity.BonePositions.Length || entity.BonePositions[boneIndex] == Vector3.Zero) continue;
+                        if (WorldToScreen(entity.BonePositions[boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
+                        {
+                            isBoxOnScreen = true; // Al menos un hueso es visible
+                            minX = Math.Min(minX, screenPos.X);
+                            minY = Math.Min(minY, screenPos.Y);
+                            maxX = Math.Max(maxX, screenPos.X);
+                            maxY = Math.Max(maxY, screenPos.Y);
+                        }
+                    }
+
+                    if (isBoxOnScreen)
+                    {
+                        topLeft = new Vector2(minX - 5, minY - 5);
+                        bottomRight = new Vector2(maxX + 5, maxY + 5);
                     }
                 }
 
-                if (!isAnyBoneOnScreen) continue;
-
-                Vector2 topLeft = new Vector2(minX - 5, minY - 5);
-                Vector2 bottomRight = new Vector2(maxX + 5, maxY + 5);
-                float width = bottomRight.X - topLeft.X;
-
-                if (drawSkeleton)
+                // Si no se pudo crear la caja con los huesos (o la entidad no tiene), se usa el método de fallback.
+                if (!isBoxOnScreen)
                 {
-                    ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde);
-                }
-
-                int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
-                if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
-                {
-                    Vector3 headPos3D = entity.BonePositions[headBoneIndex];
-                    if (WorldToScreen(headPos3D, out Vector2 headPos2D, screenWidth, screenHeight))
+                    if (WorldToScreen(entity.abs, out Vector2 screenHead, screenWidth, screenHeight) &&
+                        WorldToScreen(entity.origin, out Vector2 screenFeet, screenWidth, screenHeight))
                     {
-                        float radius = Math.Max(4, Math.Min(15, width / 12)); // Limita el radio entre 4 y 15
-                        drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
-                        drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
+                        float height = Math.Abs(screenHead.Y - screenFeet.Y);
+                        if (height > 2)
+                        {
+                            float width = height / 2.1f;
+                            topLeft = new Vector2(screenFeet.X - width / 2, screenHead.Y);
+                            bottomRight = new Vector2(screenFeet.X + width / 2, screenFeet.Y);
+                            isBoxOnScreen = true;
+                        }
                     }
                 }
 
-                ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
-                ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
-                ESP.DrawName(drawList, entity.SimpleName, topLeft, width, cNombreFill, cNombreBorde);
 
-                if (drawBones)
+                // --- PASO 2: Renderizar los componentes si la caja es válida ---
+                if (isBoxOnScreen)
                 {
-                    RenderBonesForEntity(drawList, entity, cType, screenWidth, screenHeight);
+                    float width = bottomRight.X - topLeft.X;
+
+                    // Dibuja los elementos base del ESP (Caja, Vida, Nombre)
+                    ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
+                    ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
+                    ESP.DrawName(drawList, entity.SimpleName, topLeft, width, cNombreFill, cNombreBorde);
+
+                    // --- PASO 3: Renderizar elementos opcionales ---
+
+                    // Dibuja el esqueleto y la cabeza SÓLO si está activado en el menú
+                    if (drawSkeleton && entity.BonePositions != null && ESP.SkeletonDefinitions.ContainsKey(entity.SimpleName))
+                    {
+                        ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde);
+
+                        // El Headshot ESP ahora está anidado. Solo se dibuja si el esqueleto está activo.
+                        int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
+                        if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
+                        {
+                            if (WorldToScreen(entity.BonePositions[headBoneIndex], out Vector2 headPos2D, screenWidth, screenHeight))
+                            {
+                                float radius = Math.Max(4, Math.Min(15, width / 12));
+                                drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
+                                drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
+                            }
+                        }
+                    }
+
+                    // Dibuja los índices de los huesos si está activado
+                    if (drawBones)
+                    {
+                        RenderBonesForEntity(drawList, entity, cType, screenWidth, screenHeight);
+                    }
                 }
             }
         }

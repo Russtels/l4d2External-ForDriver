@@ -108,15 +108,35 @@ namespace left4dead2Menu
 
         private void UpdateSingleEntityProperties(Entity entity, Vector3 localPlayerOriginForMagnitude, bool isLocalPlayerUpdate = false)
         {
+            // Leemos las propiedades necesarias para el nuevo filtro de pruebas.
+            entity.health = memory.ReadInt(entity.address, offsets.Health);
             entity.lifeState = memory.ReadInt(entity.address, offsets.Lifestate);
 
-            if (entity.lifeState == 0 || entity.lifeState > 50)
+            // <<< INICIO DEL NUEVO FILTRO DE PRUEBAS >>>
+            bool isValid = true;
+
+            if (entity.lifeState == 0 || entity.lifeState > 100000|| entity.lifeState == null)
             {
+                if (entity.health > 1)
+                {
+                    isValid = true;
+                }
+                else
+                isValid = false;
+            }
+
+            
+
+            if (!isValid && !isLocalPlayerUpdate)
+            {
+                // Si no cumple ninguna de las condiciones de validez, se descarta.
                 entity.modelName = null;
                 return;
             }
+            // <<< FIN DEL NUEVO FILTRO DE PRUEBAS >>>
 
-            entity.health = memory.ReadInt(entity.address, offsets.Health);
+
+            // --- Si la entidad es válida, leemos el resto de sus propiedades ---
             entity.origin = memory.ReadVec(entity.address, offsets.Origin);
             entity.viewOffset = memory.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
@@ -124,6 +144,7 @@ namespace left4dead2Menu
             entity.modelName = null;
             entity.SimpleName = "Desconocido";
             entity.BonePositions = null;
+            entity.TeamNum = memory.ReadInt(entity.address, offsets.TeamNum);
 
             try
             {
@@ -134,36 +155,36 @@ namespace left4dead2Menu
                     entity.modelName = encoding.GetString(buffer).Split('\0')[0];
                 }
 
-                if (!string.IsNullOrEmpty(entity.modelName))
+                // Si después de todo, no se pudo leer un nombre de modelo, descartamos la entidad.
+                if (string.IsNullOrEmpty(entity.modelName))
                 {
-                    string model = entity.modelName.ToLower();
-                    if (model.Contains("survivor")) entity.SimpleName = "Superviviente";
-                    else if (model.Contains("witch")) entity.SimpleName = "Witch";
-                    else if (model.Contains("hulk")) entity.SimpleName = "Tank";
-                    else if (model.Contains("smoker")) entity.SimpleName = "Smoker";
-                    else if (model.Contains("hunter")) entity.SimpleName = "Hunter";
-                    else if (model.Contains("jockey")) entity.SimpleName = "Jockey";
-                    else if (model.Contains("boom")) entity.SimpleName = "Boomer";
-                    else if (model.Contains("spitter")) entity.SimpleName = "Spitter";
-                    else if (model.Contains("charger")) entity.SimpleName = "Charger";
-                    else if (model.Contains("infected")) entity.SimpleName = "Común";
+                    entity.modelName = null; // Aseguramos que sea nulo para el filtro en PopulateEntityLists
+                    return;
                 }
+
+                string model = entity.modelName.ToLower();
+                if (model.Contains("survivor")) entity.SimpleName = "Superviviente";
+                else if (model.Contains("witch")) entity.SimpleName = "Witch";
+                else if (model.Contains("hulk")) entity.SimpleName = "Tank";
+                else if (model.Contains("smoker")) entity.SimpleName = "Smoker";
+                else if (model.Contains("hunter")) entity.SimpleName = "Hunter";
+                else if (model.Contains("jockey")) entity.SimpleName = "Jockey";
+                else if (model.Contains("boom")) entity.SimpleName = "Boomer";
+                else if (model.Contains("spitter")) entity.SimpleName = "Spitter";
+                else if (model.Contains("charger")) entity.SimpleName = "Charger";
+                else if (model.Contains("infected")) entity.SimpleName = "Común";
 
                 IntPtr boneMatrixPtr = memory.ReadPointer(entity.address, offsets.BoneMatrix);
                 if (boneMatrixPtr != IntPtr.Zero && ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections))
                 {
-                    // --- OPTIMIZACIÓN DE LECTURA DE HUESOS ---
                     int maxBoneIndex = 0;
-                    for (int i = 0; i < connections.GetLength(0); i++)
-                    {
-                        maxBoneIndex = Math.Max(maxBoneIndex, Math.Max(connections[i, 0], connections[i, 1]));
-                    }
+                    if (ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var boneSet) && boneSet.Count > 0)
+                        maxBoneIndex = boneSet.Max();
 
-                    if (maxBoneIndex > 0)
+                    if (maxBoneIndex > 0 && maxBoneIndex < 128)
                     {
-                        int bytesToRead = (maxBoneIndex + 1) * 48; // 48 bytes por matriz de hueso
+                        int bytesToRead = (maxBoneIndex + 1) * 48;
                         byte[] boneBytes = memory.ReadBytes(boneMatrixPtr, bytesToRead);
-
                         if (boneBytes != null && boneBytes.Length == bytesToRead)
                         {
                             entity.BonePositions = new Vector3[maxBoneIndex + 1];
@@ -172,10 +193,8 @@ namespace left4dead2Menu
                                 float x = BitConverter.ToSingle(boneBytes, i * 48 + 12);
                                 float y = BitConverter.ToSingle(boneBytes, i * 48 + 28);
                                 float z = BitConverter.ToSingle(boneBytes, i * 48 + 44);
-                                if (!float.IsNaN(x)) // Chequeo de sanidad simple
-                                {
+                                if (!float.IsNaN(x))
                                     entity.BonePositions[i] = new Vector3(x, y, z);
-                                }
                             }
                         }
                     }

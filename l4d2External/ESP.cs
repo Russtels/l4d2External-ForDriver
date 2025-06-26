@@ -35,7 +35,7 @@ namespace left4dead2Menu
                     { 0, 12 }, { 12, 18 }, { 18, 31 }, { 31, 32 },
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 16 }, { 16, 17 }, { 17, 19 }, { 19, 33 }
+                    { 0, 16 }, { 16, 17 }, { 17, 19 }, { 19, 33 },
                 }
             },
             { "Común", new int[,]
@@ -54,10 +54,10 @@ namespace left4dead2Menu
                     { 13, 15 }, { 15, 16 }, { 16, 17 }, { 17, 18 },
 
                     // Pierna Izquierda (conectada a la pelvis, hueso 0)
-                    { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
+                    { 0, 1 }, { 1, 2 }, { 2, 3 },
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 }
+                    { 0, 5 }, { 5, 6 }, { 6, 7 },
                 }
             },
             { "Witch", new int[,]
@@ -79,7 +79,7 @@ namespace left4dead2Menu
                     { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 }
+                    { 0, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 },
                 }
             },
             { "Tank", new int[,]
@@ -92,16 +92,16 @@ namespace left4dead2Menu
                     { 13, 12 }, { 12, 11 }, { 11, 10 }, { 10, 9 }, { 9, 0 },
 
                     // Brazo Derecho
-                    { 13, 34 }, { 34, 35 }, { 35, 36 }, { 36 , 37 },{ 37, 40 },
+                    { 13, 34 }, { 34, 35 }, { 35, 36 }, 
 
                     // Brazo Izquierdo
-                    { 13, 15 }, { 15, 16 }, { 16, 17 }, {17, 18 },{ 18, 30 },
+                    { 13, 15 }, { 15, 16 }, { 16, 17 },
 
                     // Pierna Izquierda (conectada a la pelvis, hueso 0)
-                    { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
+                    { 0, 1 }, { 1, 2 }, { 2, 3 }, 
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 }
+                    { 0, 5 }, { 5, 6 }, { 6, 7 }, 
                 }
             },
             { "Hunter", new int[,]
@@ -114,38 +114,38 @@ namespace left4dead2Menu
                     { 13, 12 }, { 12, 11 }, { 11, 10 }, { 10, 9 }, { 9, 0 },
 
                     // Brazo Derecho
-                    { 13, 34}, { 34, 35 }, { 35, 36 }, { 36, 37 },
+                    { 13, 34}, { 34, 35 }, { 35, 36 }, 
 
                     // Brazo Izquierdo
-                    { 13, 15 }, { 15, 16 }, { 16, 17 }, { 17, 18},
+                    { 13, 15 }, { 15, 16 }, { 16, 17 },
 
                     // Pierna Izquierda (conectada a la pelvis, hueso 0)
-                    { 0, 1 }, { 1, 2 }, {2,3 },{ 3, 4 },
+                    { 0, 1 }, { 1, 2 }, {2,3 },
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 5}, { 5,6},{ 6, 7 }, { 7, 8 },
+                    { 0, 5}, { 5,6},{ 6, 7 },
                 }
             },
             { "Smoker", new int[,]
                 {
                     // Cabeza y Cuello
-                    {23,14 },
-                    { 14, 13 },
+                    
+                    { 13, 12 },
 
                     // Torso (desde el cuello hasta la pelvis)
                     { 13, 12 }, { 12, 11 }, { 11, 10 }, { 10, 9 }, { 9, 0 },
 
                     // Brazo Derecho
-                    { 13, 19}, { 19,20 }, { 20, 21 },{ 21 , 22 },
+                    { 13, 19}, { 19,20 }, { 20, 21 },
 
                     // Brazo Izquierdo
-                    { 13, 15}, { 15,16 }, { 16, 17 }, { 17, 18 },
+                    { 13, 15}, { 15,16 }, { 16, 17 },
 
                     // Pierna Izquierda (conectada a la pelvis, hueso 0)
-                    { 0, 1 }, { 1, 2 }, {2,3 },{ 3, 4 },
+                    { 0, 1 }, { 1, 2 }, { 2 , 3 },
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 5}, { 5,6},{ 6, 7 }, { 7, 8 },
+                    { 0, 5}, { 5,6},{ 6, 7 },
                 }
             },
             { "Jockey", new int[,]
@@ -167,7 +167,7 @@ namespace left4dead2Menu
                     { 0, 46 }, { 46, 47 }, { 47, 48}, { 48, 49},
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 50 }, { 50, 51 }, { 51, 52 }, { 52, 53 }
+                    { 0, 50 }, { 50, 51 }, { 51, 52 }, { 52, 53 },
                 }
             },
             { "Boomer", new int[,]
@@ -211,7 +211,7 @@ namespace left4dead2Menu
                     { 0, 57 }, { 57, 58 }, { 58, 59}, { 59, 60},
 
                     // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 62 }, { 62, 63 }, { 63, 64 }, { 64, 65 }
+                    { 0, 62 }, { 62, 63 }, { 63, 64 }, { 64, 65 },
                 }
             },
             { "Charger", new int[,]
@@ -232,8 +232,8 @@ namespace left4dead2Menu
                     // Pierna Izquierda (conectada a la pelvis, hueso 0)
                     { 0, 9}, { 9, 10}, { 10, 11}, { 11, 36},
 
-                    // Pierna Derecha (conectada a la pelvis, hueso 0)
-                    { 0, 12 }, { 12, 13}, { 13, 14}, { 14, 37}
+                    // Pierna Derecha (conectada a la pelvis, hueso 0),
+                    { 0, 12 }, { 12, 13}, { 13, 14}, { 14, 37},
                 }
             }
         };
@@ -324,24 +324,28 @@ namespace left4dead2Menu
             drawList.AddRectFilled(healthBarStart, healthBarEnd, colorGreen);
         }
 
+        // l4d2External/ESP.cs
+
+        // Reemplaza este método
         public static void DrawName(ImDrawListPtr drawList, string? name, Vector2 boxTopLeft, float boxWidth, uint innerColor, uint borderColor)
         {
-            if (string.IsNullOrEmpty(name)) return;
+            // Si el nombre es nulo o vacío, lo reemplazamos por "Unknown".
+            string displayName = string.IsNullOrEmpty(name) ? "Unknown" : name;
 
-            Vector2 textSize = ImGui.CalcTextSize(name);
+            Vector2 textSize = ImGui.CalcTextSize(displayName);
             Vector2 textPos = new Vector2(
                 boxTopLeft.X + (boxWidth / 2) - (textSize.X / 2),
                 boxTopLeft.Y - textSize.Y - 2
             );
 
             // Dibuja el borde/sombra del texto
-            drawList.AddText(textPos + new Vector2(1, 1), borderColor, name);
-            drawList.AddText(textPos + new Vector2(-1, -1), borderColor, name);
-            drawList.AddText(textPos + new Vector2(1, -1), borderColor, name);
-            drawList.AddText(textPos + new Vector2(-1, 1), borderColor, name);
+            drawList.AddText(textPos + new Vector2(1, 1), borderColor, displayName);
+            drawList.AddText(textPos + new Vector2(-1, -1), borderColor, displayName);
+            drawList.AddText(textPos + new Vector2(1, -1), borderColor, displayName);
+            drawList.AddText(textPos + new Vector2(-1, 1), borderColor, displayName);
 
             // Dibuja el texto principal
-            drawList.AddText(textPos, innerColor, name);
+            drawList.AddText(textPos, innerColor, displayName);
         }
     }
 }
