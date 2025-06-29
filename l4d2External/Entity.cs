@@ -1,11 +1,6 @@
-﻿// l4d2External/Entity.cs
-
+﻿// l4d2External/Entity.cs (MODIFICADO)
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace l4d2External
 {
@@ -13,6 +8,7 @@ namespace l4d2External
     {
         public IntPtr address { get; set; }
         public int health { get; set; }
+        public int maxHealth { get; set; } // <-- NUEVA PROPIEDAD
         public int teamNum { get; set; }
         public int lifeState { get; set; }
         public int jumpflag { get; set; }
@@ -23,10 +19,6 @@ namespace l4d2External
         public string? SimpleName { get; set; }
         public string? modelName { get; set; }
         public int TeamNum { get; set; }
-
-
-        // <<< NUEVA PROPIEDAD >>>
-        // Almacenará las coordenadas 3D de cada hueso.
         public Vector3[]? BonePositions { get; set; }
 
         public Entity()
@@ -35,6 +27,7 @@ namespace l4d2External
             origin = Vector3.Zero;
             abs = Vector3.Zero;
             viewOffset = Vector3.Zero;
+            maxHealth = 6000;// Valor por defecto
         }
     }
 }

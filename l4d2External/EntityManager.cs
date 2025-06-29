@@ -1,4 +1,4 @@
-﻿// EntityManager.cs (Tu versión funcional)
+﻿// l4d2External/EntityManager.cs (RESTAURADO Y CORREGIDO)
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +14,13 @@ namespace left4dead2Menu
         private readonly Offsets offsets;
         private readonly Encoding encoding;
 
-        private const int MAX_ENTITIES =900;
-        private const int ENTITY_LOOP_STRIDE = 0x10;
-        private const int MAX_BONES = 128;
+        // Diccionario para persistir la vida máxima. La clave es la dirección de memoria de la entidad.
+        private readonly Dictionary<IntPtr, int> maxHealthStorage = new Dictionary<IntPtr, int>();
 
-        public EntityManager(GameMemory memory, Offsets offsets, Encoding encoding) // Cambiado de Swed a GameMemory
+        private const int MAX_ENTITIES = 900;
+        private const int ENTITY_LOOP_STRIDE = 0x10;
+
+        public EntityManager(GameMemory memory, Offsets offsets, Encoding encoding)
         {
             this.memory = memory;
             this.offsets = offsets;
@@ -51,92 +53,98 @@ namespace left4dead2Menu
         }
 
         private void PopulateEntityLists(
-        Entity localPlayer,
-        List<Entity> commonInfected,
-        List<Entity> specialInfected,
-        List<Entity> bossInfected,
-        List<Entity> survivors,
-        IntPtr clientModuleBase)
+            Entity localPlayer,
+            List<Entity> commonInfected,
+            List<Entity> specialInfected,
+            List<Entity> bossInfected,
+            List<Entity> survivors,
+            IntPtr clientModuleBase)
         {
             IntPtr entityListBase = clientModuleBase + offsets.entityList;
+            var activeEntities = new HashSet<IntPtr>();
 
             for (int i = 0; i < MAX_ENTITIES; i++)
             {
-                Entity currentEntity = new Entity();
-                currentEntity.address = memory.ReadPointer(entityListBase, i * ENTITY_LOOP_STRIDE);
-
-                if (currentEntity.address == IntPtr.Zero || currentEntity.address == localPlayer.address)
+                IntPtr currentEntityAddress = memory.ReadPointer(entityListBase, i * ENTITY_LOOP_STRIDE);
+                if (currentEntityAddress == IntPtr.Zero || currentEntityAddress == localPlayer.address)
                 {
                     continue;
                 }
 
-                // Esta función ahora valida la entidad internamente.
+                Entity currentEntity = new Entity { address = currentEntityAddress };
                 UpdateSingleEntityProperties(currentEntity, localPlayer.origin);
 
-                // <<< CAMBIO CLAVE >>>
-                // La validación de vida ahora está dentro de UpdateSingleEntityProperties.
-                // Si la entidad no estaba viva, su modelName será nulo. Usamos eso como el nuevo check.
+                // Si la entidad no es válida según la lógica original, se ignora
                 if (string.IsNullOrEmpty(currentEntity.modelName))
                 {
                     continue;
                 }
 
+                activeEntities.Add(currentEntity.address); // Añadir a la lista de entidades activas esta ronda
+
+                // Lógica de Max Health Corregida
+                // Si la entidad no está en nuestro diccionario, la añadimos.
+                // Su vida actual se considera la vida máxima.
+                if (!maxHealthStorage.ContainsKey(currentEntity.address))
+                {
+                    // Asegurarse de que la vida tenga un valor lógico antes de asignarla como máxima
+                    if (currentEntity.health > 0 && currentEntity.health <= 10000)
+                        maxHealthStorage[currentEntity.address] = currentEntity.health;
+                }
+
+                // Asignar la vida máxima desde el diccionario. Si no existe, usará el valor por defecto de la entidad.
+                if (maxHealthStorage.TryGetValue(currentEntity.address, out int maxHealth))
+                {
+                    currentEntity.maxHealth = maxHealth;
+                }
+
+                // Clasificar la entidad en su lista correspondiente
                 if (!currentEntity.modelName.StartsWith("DEBUG"))
                 {
                     string model = currentEntity.modelName.ToLower();
 
-                    if (model.Contains("survivor"))
-                    {
-                        survivors.Add(currentEntity);
-                    }
-                    else if (model.Contains("hulk") || model.Contains("witch"))
-                    {
-                        bossInfected.Add(currentEntity);
-                    }
+                    if (model.Contains("survivor")) survivors.Add(currentEntity);
+                    else if (model.Contains("hulk") || model.Contains("witch")) bossInfected.Add(currentEntity);
                     else if (model.Contains("charger") || model.Contains("jockey") || model.Contains("spitter") ||
                              model.Contains("hunter") || model.Contains("smoker") || model.Contains("boom"))
                     {
                         specialInfected.Add(currentEntity);
                     }
-                    else if (model.Contains("infected"))
-                    {
-                        commonInfected.Add(currentEntity);
-                    }
+                    else if (model.Contains("infected")) commonInfected.Add(currentEntity);
                 }
+            }
+
+            // Limpiar el diccionario de entidades que ya no existen en el juego
+            var inactiveEntities = maxHealthStorage.Keys.Except(activeEntities).ToList();
+            foreach (var inactiveAddress in inactiveEntities)
+            {
+                maxHealthStorage.Remove(inactiveAddress);
             }
         }
 
+        // <<< MÉTODO RESTAURADO A LA VERSIÓN ORIGINAL DEL REPOSITORIO >>>
         private void UpdateSingleEntityProperties(Entity entity, Vector3 localPlayerOriginForMagnitude, bool isLocalPlayerUpdate = false)
         {
-            // Leemos las propiedades necesarias para el nuevo filtro de pruebas.
             entity.health = memory.ReadInt(entity.address, offsets.Health);
             entity.lifeState = memory.ReadInt(entity.address, offsets.Lifestate);
 
-            // <<< INICIO DEL NUEVO FILTRO DE PRUEBAS >>>
             bool isValid = true;
-
-            if (entity.lifeState == 0 || entity.lifeState > 100000|| entity.lifeState == null)
+            if (entity.lifeState == 0 || entity.lifeState > 100000)
             {
                 if (entity.health > 1)
                 {
                     isValid = true;
                 }
                 else
-                isValid = false;
+                    isValid = false;
             }
-
-            
 
             if (!isValid && !isLocalPlayerUpdate)
             {
-                // Si no cumple ninguna de las condiciones de validez, se descarta.
                 entity.modelName = null;
                 return;
             }
-            // <<< FIN DEL NUEVO FILTRO DE PRUEBAS >>>
 
-
-            // --- Si la entidad es válida, leemos el resto de sus propiedades ---
             entity.origin = memory.ReadVec(entity.address, offsets.Origin);
             entity.viewOffset = memory.ReadVec(entity.address, offsets.ViewOffset);
             entity.abs = Vector3.Add(entity.origin, entity.viewOffset);
@@ -155,10 +163,9 @@ namespace left4dead2Menu
                     entity.modelName = encoding.GetString(buffer).Split('\0')[0];
                 }
 
-                // Si después de todo, no se pudo leer un nombre de modelo, descartamos la entidad.
                 if (string.IsNullOrEmpty(entity.modelName))
                 {
-                    entity.modelName = null; // Aseguramos que sea nulo para el filtro en PopulateEntityLists
+                    entity.modelName = null;
                     return;
                 }
 
@@ -175,26 +182,26 @@ namespace left4dead2Menu
                 else if (model.Contains("infected")) entity.SimpleName = "Común";
 
                 IntPtr boneMatrixPtr = memory.ReadPointer(entity.address, offsets.BoneMatrix);
-                if (boneMatrixPtr != IntPtr.Zero && ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections))
+                if (boneMatrixPtr != IntPtr.Zero && entity.SimpleName != null && ESP.SkeletonDefinitions.TryGetValue(entity.SimpleName, out _))
                 {
-                    int maxBoneIndex = 0;
                     if (ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var boneSet) && boneSet.Count > 0)
-                        maxBoneIndex = boneSet.Max();
-
-                    if (maxBoneIndex > 0 && maxBoneIndex < 128)
                     {
-                        int bytesToRead = (maxBoneIndex + 1) * 48;
-                        byte[] boneBytes = memory.ReadBytes(boneMatrixPtr, bytesToRead);
-                        if (boneBytes != null && boneBytes.Length == bytesToRead)
+                        int maxBoneIndex = boneSet.Max();
+                        if (maxBoneIndex > 0 && maxBoneIndex < 128)
                         {
-                            entity.BonePositions = new Vector3[maxBoneIndex + 1];
-                            for (int i = 0; i <= maxBoneIndex; i++)
+                            int bytesToRead = (maxBoneIndex + 1) * 48;
+                            byte[] boneBytes = memory.ReadBytes(boneMatrixPtr, bytesToRead);
+                            if (boneBytes != null && boneBytes.Length == bytesToRead)
                             {
-                                float x = BitConverter.ToSingle(boneBytes, i * 48 + 12);
-                                float y = BitConverter.ToSingle(boneBytes, i * 48 + 28);
-                                float z = BitConverter.ToSingle(boneBytes, i * 48 + 44);
-                                if (!float.IsNaN(x))
-                                    entity.BonePositions[i] = new Vector3(x, y, z);
+                                entity.BonePositions = new Vector3[maxBoneIndex + 1];
+                                for (int i = 0; i <= maxBoneIndex; i++)
+                                {
+                                    float x = BitConverter.ToSingle(boneBytes, i * 48 + 12);
+                                    float y = BitConverter.ToSingle(boneBytes, i * 48 + 28);
+                                    float z = BitConverter.ToSingle(boneBytes, i * 48 + 44);
+                                    if (!float.IsNaN(x))
+                                        entity.BonePositions[i] = new Vector3(x, y, z);
+                                }
                             }
                         }
                     }

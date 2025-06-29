@@ -1,4 +1,4 @@
-﻿// l4d2External/AimbotController.cs (Actualizado para apuntar a huesos específicos)
+﻿// l4d2External/AimbotController.cs (MODIFICADO CON PRIORIDADES)
 
 using System;
 using System.Collections.Generic;
@@ -10,24 +10,78 @@ namespace left4dead2Menu
 {
     internal class AimbotController
     {
+        // Conjuntos de nombres para facilitar la categorización
+        private static readonly HashSet<string> SpecialInfectedNames = new HashSet<string>
+        {
+            "Smoker", "Hunter", "Jockey", "Boomer", "Spitter", "Charger"
+        };
+
+        private static readonly HashSet<string> BossNames = new HashSet<string>
+        {
+            "Tank", "Witch"
+        };
+
         public AimbotController() { }
 
+        // --- MÉTODO PRINCIPAL MODIFICADO CON LA NUEVA LÓGICA DE PRIORIDAD ---
         public Entity? FindBestTarget(Entity localPlayer, List<Entity> potentialTargets, bool isAimbotAreaEnabled, float aimbotAreaRadius, float fovVisualRadius, Renderer renderer, float screenWidth, float screenHeight)
         {
-            var liveTargets = potentialTargets.Where(t => t.lifeState > 0 || t.lifeState <100).ToList();
-            if (liveTargets.Count == 0) return null;
+            // <<< FILTRO DE LIFESTATE ORIGINAL - SIN CAMBIOS >>>
+            var liveTargets = potentialTargets.Where(t => t.lifeState > 0 || t.lifeState < 100).ToList();
+            if (!liveTargets.Any())
+            {
+                return null;
+            }
+
+            // --- Lógica de Prioridad ---
+
+            // 1. Categorizar los objetivos vivos que pasaron el filtro inicial
+            var specialTargets = liveTargets.Where(t => t.SimpleName != null && SpecialInfectedNames.Contains(t.SimpleName)).ToList();
+            var bossTargets = liveTargets.Where(t => t.SimpleName != null && BossNames.Contains(t.SimpleName)).ToList();
+            var commonTargets = liveTargets.Where(t => t.SimpleName == "Común").ToList();
+            var survivorTargets = liveTargets.Where(t => t.SimpleName == "Superviviente").ToList();
+
+            // 2. Aplicar la lógica de búsqueda en orden de prioridad
+            // (El sistema ya se encarga de que solo las categorías activadas en la GUI estén en `potentialTargets`)
+
+            // Prioridad 1: Infectados Especiales
+            Entity? bestTarget = FindBestTargetInCategory(specialTargets, isAimbotAreaEnabled, aimbotAreaRadius, fovVisualRadius, renderer, screenWidth, screenHeight);
+            if (bestTarget != null) return bestTarget;
+
+            // Prioridad 2: Jefes
+            bestTarget = FindBestTargetInCategory(bossTargets, isAimbotAreaEnabled, aimbotAreaRadius, fovVisualRadius, renderer, screenWidth, screenHeight);
+            if (bestTarget != null) return bestTarget;
+
+            // Prioridad 3: Comunes
+            bestTarget = FindBestTargetInCategory(commonTargets, isAimbotAreaEnabled, aimbotAreaRadius, fovVisualRadius, renderer, screenWidth, screenHeight);
+            if (bestTarget != null) return bestTarget;
+
+            // Prioridad 4: Supervivientes
+            bestTarget = FindBestTargetInCategory(survivorTargets, isAimbotAreaEnabled, aimbotAreaRadius, fovVisualRadius, renderer, screenWidth, screenHeight);
+            if (bestTarget != null) return bestTarget;
+
+            // Si no se encuentra ningún objetivo válido en ninguna categoría prioritaria
+            return null;
+        }
+
+        // Método de ayuda para encontrar el mejor objetivo dentro de una categoría (sin cambios)
+        private Entity? FindBestTargetInCategory(List<Entity> targets, bool isAimbotAreaEnabled, float aimbotAreaRadius, float fovVisualRadius, Renderer renderer, float screenWidth, float screenHeight)
+        {
+            if (!targets.Any())
+            {
+                return null;
+            }
 
             List<Entity> validTargets;
             if (isAimbotAreaEnabled)
             {
-                validTargets = liveTargets.Where(t => t.magnitude <= aimbotAreaRadius).ToList();
+                validTargets = targets.Where(t => t.magnitude <= aimbotAreaRadius).ToList();
             }
             else
             {
                 Vector2 screenCenter = new Vector2(screenWidth / 2, screenHeight / 2);
-                validTargets = liveTargets.Where(t =>
+                validTargets = targets.Where(t =>
                 {
-                    // Usamos la cabeza para el check de FOV
                     Vector3? aimPos = GetTargetPosition(t, AimbotTarget.Head);
                     if (aimPos.HasValue && renderer.WorldToScreen(aimPos.Value, out Vector2 screenPos, screenWidth, screenHeight))
                     {
@@ -37,8 +91,11 @@ namespace left4dead2Menu
                 }).ToList();
             }
 
-            return validTargets.Count > 0 ? validTargets.OrderBy(t => t.magnitude).First() : null;
+            return validTargets.Any() ? validTargets.OrderBy(t => t.magnitude).First() : null;
         }
+
+
+        // --- MÉTODOS RESTANTES (SIN CAMBIOS) ---
 
         public void ExecuteMouseAimbot(Entity target, AimbotTarget targetSelection, float smoothness, Renderer renderer, float screenWidth, float screenHeight)
         {
@@ -58,7 +115,7 @@ namespace left4dead2Menu
 
         private Vector3? GetTargetPosition(Entity target, AimbotTarget targetSelection)
         {
-            if (target.BonePositions == null) return null;
+            if (target.BonePositions == null || target.SimpleName == null) return null;
 
             int boneIndex = -1;
             if (targetSelection == AimbotTarget.Head)
@@ -75,7 +132,7 @@ namespace left4dead2Menu
                 return target.BonePositions[boneIndex];
             }
 
-            return null; // Devuelve nulo si no se pudo encontrar el hueso
+            return null;
         }
     }
 }

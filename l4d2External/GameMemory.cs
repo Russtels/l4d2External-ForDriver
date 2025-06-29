@@ -66,7 +66,11 @@ namespace left4dead2Menu
             }
         }
 
-        // Métodos de conveniencia para mantener la compatibilidad con el resto del código
+        public void WriteInt(IntPtr address, int value)
+        {
+            driver.WriteMemory(address, value);
+        }
+
         public T Read<T>(IntPtr address) where T : struct
         {
             return driver.ReadMemory<T>(address);

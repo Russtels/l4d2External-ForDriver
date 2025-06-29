@@ -33,6 +33,9 @@ namespace left4dead2Menu
         public const int INPUT_KEYBOARD = 1;
         public const int INPUT_MOUSE = 0;
 
+        public const int VK_CONTROL = 0x11;
+        public const int VK_SPACE = 0x20;
+
         public const int KEYEVENTF_KEYDOWN = 0x0000;
         public const int KEYEVENTF_KEYUP = 0x0002;
         public const int KEYEVENTF_SCANCODE = 0x0008;
@@ -41,7 +44,6 @@ namespace left4dead2Menu
         public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
 
-        // Estructura para la entrada de teclado
         [StructLayout(LayoutKind.Sequential)]
         public struct KEYBDINPUT
         {
@@ -51,8 +53,6 @@ namespace left4dead2Menu
             public uint time;
             public IntPtr dwExtraInfo;
         }
-
-        // Estructura para la entrada de ratón (necesaria para el layout de INPUT)
         [StructLayout(LayoutKind.Sequential)]
         public struct MOUSEINPUT
         {
@@ -63,8 +63,6 @@ namespace left4dead2Menu
             public uint time;
             public IntPtr dwExtraInfo;
         }
-
-        // Estructura para la entrada de hardware (necesaria para el layout de INPUT)
         [StructLayout(LayoutKind.Sequential)]
         public struct HARDWAREINPUT
         {
@@ -72,8 +70,6 @@ namespace left4dead2Menu
             public ushort wParamL;
             public ushort wParamH;
         }
-
-        // Unión para los diferentes tipos de entrada
         [StructLayout(LayoutKind.Explicit)]
         public struct MOUSEKEYBDHARDWAREINPUT
         {
@@ -86,8 +82,6 @@ namespace left4dead2Menu
             [FieldOffset(0)]
             public HARDWAREINPUT hi;
         }
-
-        // Estructura principal para SendInput
         [StructLayout(LayoutKind.Sequential)]
         public struct INPUT
         {
@@ -106,25 +100,20 @@ namespace left4dead2Menu
 
         public static void SimulateRightClick()
         {
-            // --- PRESIÓN DEL BOTÓN ---
             INPUT[] inputDown = new INPUT[1];
             inputDown[0].type = INPUT_MOUSE;
             inputDown[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
             SendInput(1, inputDown, Marshal.SizeOf(typeof(INPUT)));
 
-            // --- PAUSA PARA ASEGURAR LA DETECCIÓN ---
-            // Una pequeña espera para simular un clic real y que el juego lo detecte.
             Thread.Sleep(50);
 
-            // --- LIBERACIÓN DEL BOTÓN ---
             INPUT[] inputUp = new INPUT[1];
             inputUp[0].type = INPUT_MOUSE;
             inputUp[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
             SendInput(1, inputUp, Marshal.SizeOf(typeof(INPUT)));
         }
-
-        // Firma de la función SendInput
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint SendInput(uint nInputs, [In, MarshalAs(UnmanagedType.LPArray, SizeConst = 1)] INPUT[] pInputs, int cbSize);
+
     }
 }

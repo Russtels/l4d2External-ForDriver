@@ -238,27 +238,23 @@ namespace left4dead2Menu
             }
         };
 
-
         public static readonly Dictionary<string, HashSet<int>> ActiveBoneSets;
 
         public static bool IsSkeletonComplete(Entity entity)
         {
-            if (entity.BonePositions == null || !ActiveBoneSets.TryGetValue(entity.SimpleName, out var requiredBones))
+            if (entity?.BonePositions == null || entity.SimpleName == null || !ActiveBoneSets.TryGetValue(entity.SimpleName, out var requiredBones))
             {
-                return false; // No hay datos de huesos o no hay definición para este modelo
+                return false;
             }
 
-            // Itera sobre cada hueso que DEBERÍA existir para este modelo
             foreach (int boneIndex in requiredBones)
             {
-                // Si un hueso está fuera de los límites o es una coordenada (0,0,0), el esqueleto está incompleto.
                 if (boneIndex >= entity.BonePositions.Length || entity.BonePositions[boneIndex] == Vector3.Zero)
                 {
-                    return false; // Se encontró un hueso faltante o inválido
+                    return false;
                 }
             }
-
-            return true; // Todos los huesos requeridos están presentes y son válidos
+            return true;
         }
 
         static ESP()
@@ -279,29 +275,25 @@ namespace left4dead2Menu
 
         public static int GetHeadBoneIndex(string simpleName)
         {
-            if (SkeletonDefinitions.TryGetValue(simpleName, out var connections) && connections.Length > 0)
+            if (simpleName != null && SkeletonDefinitions.TryGetValue(simpleName, out var connections) && connections.Length > 0)
             {
-                return connections[0, 0]; // Devuelve el primer hueso de la primera conexión (la cabeza).
+                return connections[0, 0];
             }
-            return -1; // No encontrado
+            return -1;
         }
 
         public static int GetChestBoneIndex(string simpleName)
         {
-            if (SkeletonDefinitions.TryGetValue(simpleName, out var connections) && connections.Length > 0)
+            if (simpleName != null && SkeletonDefinitions.TryGetValue(simpleName, out var connections) && connections.Length > 0)
             {
-                // Devuelve el hueso del cuello/torso superior, un buen objetivo para el pecho.
                 return connections[1, 1];
             }
-            return -1; // No encontrado
+            return -1;
         }
-
-        // --- FUNCIONES DE DIBUJO ACTUALIZADAS ---
 
         public static void DrawSkeleton(ImDrawListPtr drawList, Entity entity, Renderer renderer, float screenWidth, float screenHeight, uint innerColor, uint borderColor, float maxBoneLength)
         {
-            // La comprobación inicial no cambia
-            if (entity.BonePositions == null || !SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections) || connections.Length == 0) return;
+            if (entity?.BonePositions == null || entity.SimpleName == null || !SkeletonDefinitions.TryGetValue(entity.SimpleName, out var connections) || connections.Length == 0) return;
 
             for (int i = 0; i < connections.GetLength(0); i++)
             {
@@ -311,12 +303,9 @@ namespace left4dead2Menu
                 if (boneIndex1 >= entity.BonePositions.Length || boneIndex2 >= entity.BonePositions.Length) continue;
                 if (entity.BonePositions[boneIndex1] == Vector3.Zero || entity.BonePositions[boneIndex2] == Vector3.Zero) continue;
 
-
                 if (renderer.WorldToScreen(entity.BonePositions[boneIndex1], out Vector2 screenPos1, screenWidth, screenHeight) &&
                     renderer.WorldToScreen(entity.BonePositions[boneIndex2], out Vector2 screenPos2, screenWidth, screenHeight))
                 {
-                    // <<< NUEVA COMPROBACIÓN >>>
-                    // Solo dibuja la línea si la distancia en pantalla es menor que el máximo permitido.
                     if (Vector2.Distance(screenPos1, screenPos2) < maxBoneLength)
                     {
                         drawList.AddLine(screenPos1, screenPos2, borderColor, 3.0f);
@@ -328,48 +317,96 @@ namespace left4dead2Menu
 
         public static void DrawBox(ImDrawListPtr drawList, Vector2 topLeft, Vector2 bottomRight, uint innerColor, uint borderColor)
         {
-            // Dibuja el borde
             drawList.AddRect(topLeft, bottomRight, borderColor, 0, ImDrawFlags.None, 3.0f);
-            // Dibuja el relleno interior
             drawList.AddRect(topLeft + new Vector2(1.5f, 1.5f), bottomRight - new Vector2(1.5f, 1.5f), innerColor, 0, ImDrawFlags.None, 1.5f);
         }
 
-        public static void DrawHealthBar(ImDrawListPtr drawList, Vector2 boxTopLeft, Vector2 boxBottomRight, int currentHealth, int maxHealth)
+        public static void DrawHealthBar(ImDrawListPtr drawList, Vector2 boxTopLeft, Vector2 boxBottomRight, int currentHealth, int maxHealth, Config cfg)
         {
+            if (maxHealth <= 0) return;
+
             currentHealth = Math.Max(0, Math.Min(currentHealth, maxHealth));
             float healthPercentage = (float)currentHealth / maxHealth;
-            float boxWidth = boxBottomRight.X - boxTopLeft.X;
-            Vector2 healthBarStart = new Vector2(boxTopLeft.X, boxBottomRight.Y + 3);
-            Vector2 healthBarEnd = new Vector2(boxTopLeft.X + (boxWidth * healthPercentage), boxBottomRight.Y + 7);
-            Vector2 healthBarBgEnd = new Vector2(boxBottomRight.X, boxBottomRight.Y + 7);
-            uint colorRed = ImGui.GetColorU32(new Vector4(1, 0, 0, 0.7f));
-            uint colorGreen = ImGui.GetColorU32(new Vector4(0, 1, 0, 1f));
-            drawList.AddRectFilled(healthBarStart, healthBarBgEnd, colorRed);
-            drawList.AddRectFilled(healthBarStart, healthBarEnd, colorGreen);
+
+            // Puedes ajustar este valor para hacer la barra más gruesa o delgada
+            float barWidth = 5f;
+            float barSpacing = 4f; // Espacio entre la caja del ESP y la barra de vida
+
+            // --- LÓGICA DE DIBUJO CORREGIDA ---
+
+            // Definimos las esquinas del área de la barra de vida. 
+            // p1 es la esquina superior izquierda, p2 es la inferior derecha.
+            Vector2 bg_p1 = new Vector2(boxTopLeft.X - barWidth - barSpacing, boxTopLeft.Y);
+            Vector2 bg_p2 = new Vector2(boxTopLeft.X - barSpacing, boxBottomRight.Y);
+
+            // Dibuja el fondo negro/semitransparente de la barra
+            drawList.AddRectFilled(bg_p1, bg_p2, ImGui.GetColorU32(cfg.ColorHealthBarBackground));
+
+            // Calculamos la altura que debe tener la barra de vida actual
+            float totalBarHeight = bg_p2.Y - bg_p1.Y;
+            float healthBarHeight = totalBarHeight * healthPercentage;
+
+            // Definimos las esquinas de la barra de vida actual (la que tiene color)
+            // Crece desde abajo (bg_p2.Y) hacia arriba.
+            Vector2 health_p1 = new Vector2(bg_p1.X, bg_p2.Y - healthBarHeight);
+            Vector2 health_p2 = bg_p2;
+
+            // Interpola el color entre el de vida vacía y vida llena
+            Vector4 healthColorVec = Vector4.Lerp(cfg.ColorHealthBarEmpty, cfg.ColorHealthBarFull, healthPercentage);
+            uint colorHealth = ImGui.GetColorU32(healthColorVec);
+
+            // Dibuja la barra de vida actual sobre el fondo
+            if (healthBarHeight > 0)
+            {
+                drawList.AddRectFilled(health_p1, health_p2, colorHealth);
+            }
+
+            // Dibuja un borde negro alrededor de toda la barra para que se vea más definida
+            drawList.AddRect(bg_p1, bg_p2, ImGui.GetColorU32(new Vector4(0, 0, 0, 1f)));
+
+            // El texto de porcentaje se mantiene igual
+            string healthText = $"{(healthPercentage * 100):F0} %";
+            Vector2 textSize = ImGui.CalcTextSize(healthText);
+            Vector2 textPos = new Vector2(
+                boxTopLeft.X + ((boxBottomRight.X - boxTopLeft.X) / 2) - (textSize.X / 2),
+                boxBottomRight.Y + 2
+            );
+            drawList.AddText(textPos + new Vector2(1, 1), ImGui.GetColorU32(new Vector4(0, 0, 0, 1f)), healthText);
+            drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1, 1, 1, 1f)), healthText);
         }
 
-        // l4d2External/ESP.cs
+        public static void DrawHeadCircle(ImDrawListPtr drawList, Entity entity, Renderer renderer, float screenWidth, float screenHeight, uint innerColor, uint borderColor, float boxWidth)
+        {
+            if (entity?.SimpleName == null || entity.BonePositions == null) return;
 
-        // Reemplaza este método
+            int headBoneIndex = GetHeadBoneIndex(entity.SimpleName);
+            if (headBoneIndex != -1 && headBoneIndex < entity.BonePositions.Length)
+            {
+                if (renderer.WorldToScreen(entity.BonePositions[headBoneIndex], out Vector2 headPos2D, screenWidth, screenHeight))
+                {
+                    float radius = Math.Max(4, Math.Min(15, boxWidth / 8));
+                    drawList.AddCircle(headPos2D, radius, borderColor, 12, 3.0f);
+                    drawList.AddCircleFilled(headPos2D, radius, innerColor);
+                }
+            }
+        }
+
         public static void DrawName(ImDrawListPtr drawList, string? name, Vector2 boxTopLeft, float boxWidth, uint innerColor, uint borderColor)
         {
-            // Si el nombre es nulo o vacío, lo reemplazamos por "Unknown".
             string displayName = string.IsNullOrEmpty(name) ? "Unknown" : name;
-
             Vector2 textSize = ImGui.CalcTextSize(displayName);
             Vector2 textPos = new Vector2(
                 boxTopLeft.X + (boxWidth / 2) - (textSize.X / 2),
                 boxTopLeft.Y - textSize.Y - 2
             );
 
-            // Dibuja el borde/sombra del texto
             drawList.AddText(textPos + new Vector2(1, 1), borderColor, displayName);
             drawList.AddText(textPos + new Vector2(-1, -1), borderColor, displayName);
             drawList.AddText(textPos + new Vector2(1, -1), borderColor, displayName);
             drawList.AddText(textPos + new Vector2(-1, 1), borderColor, displayName);
-
-            // Dibuja el texto principal
             drawList.AddText(textPos, innerColor, displayName);
         }
     }
 }
+
+    

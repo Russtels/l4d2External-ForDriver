@@ -1,11 +1,11 @@
-﻿// l4d2External/Renderer.cs (Corregido con Bounding Box Preciso)
-
+﻿// l4d2External/Renderer.cs (RESTAURADO)
 using ImGuiNET;
 using System.Numerics;
 using System.Collections.Generic;
 using l4d2External;
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace left4dead2Menu
 {
@@ -35,14 +35,7 @@ namespace left4dead2Menu
                     byte[] matrixBytes = memory.ReadBytes(matrixAddress, 64);
                     if (matrixBytes != null && matrixBytes.Length == 64)
                     {
-                        float[] matrixFloats = new float[16];
-                        Buffer.BlockCopy(matrixBytes, 0, matrixFloats, 0, 64);
-                        viewMatrix = new Matrix4x4(
-                            matrixFloats[0], matrixFloats[1], matrixFloats[2], matrixFloats[3],
-                            matrixFloats[4], matrixFloats[5], matrixFloats[6], matrixFloats[7],
-                            matrixFloats[8], matrixFloats[9], matrixFloats[10], matrixFloats[11],
-                            matrixFloats[12], matrixFloats[13], matrixFloats[14], matrixFloats[15]
-                        );
+                        viewMatrix = MemoryMarshal.Read<Matrix4x4>(matrixBytes);
                     }
                 }
             }
@@ -73,80 +66,53 @@ namespace left4dead2Menu
             }
         }
 
+        // <<< MÉTODO RESTAURADO PARA USAR LISTAS SEPARADAS >>>
         public void RenderAll(
             ImDrawListPtr drawList, float screenWidth, float screenHeight,
             List<Entity> common, List<Entity> special, List<Entity> bosses, List<Entity> survivors,
-            bool espOnBosses, Vector4 espColorBosses, bool espOnSpecials, Vector4 espColorSpecials,
-            bool espOnCommons, Vector4 espColorCommons, bool espOnSurvivors, Vector4 espColorSurvivors,
-            bool espDrawBones, bool espDrawSkeleton,
-            // Colores
-            Vector4 colorNombreFill, Vector4 colorNombreBorde,
-            Vector4 colorCajaFill, Vector4 colorCajaBorde,
-            Vector4 colorEsqueletoFill, Vector4 colorEsqueletoBorde)
+            Config cfg)
         {
-            if (espOnCommons) RenderESPForEntities(drawList, common, espColorCommons, screenWidth, screenHeight, 50, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
-            if (espOnSpecials) RenderESPForEntities(drawList, special, espColorSpecials, screenWidth, screenHeight, 300, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
-            if (espOnBosses) RenderESPForEntities(drawList, bosses, espColorBosses, screenWidth, screenHeight, 6000, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
-            if (espOnSurvivors) RenderESPForEntities(drawList, survivors, espColorSurvivors, screenWidth, screenHeight, 100, espDrawBones, espDrawSkeleton, colorNombreFill, colorNombreBorde, colorCajaFill, colorCajaBorde, colorEsqueletoFill, colorEsqueletoBorde);
+            if (cfg.EspOnCommons) RenderESPForEntities(drawList, common, screenWidth, screenHeight, cfg);
+            if (cfg.EspOnSpecials) RenderESPForEntities(drawList, special, screenWidth, screenHeight, cfg);
+            if (cfg.EspOnBosses) RenderESPForEntities(drawList, bosses, screenWidth, screenHeight, cfg);
+            if (cfg.EspOnSurvivors) RenderESPForEntities(drawList, survivors, screenWidth, screenHeight, cfg);
         }
 
-        private void RenderBonesForEntity(ImDrawListPtr drawList, Entity entity, uint color, float screenWidth, float screenHeight)
+        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, float screenWidth, float screenHeight, Config cfg)
         {
-            if (entity.BonePositions == null) return;
-
-            for (int i = 0; i < entity.BonePositions.Length; i++)
-            {
-                if (entity.BonePositions[i] == Vector3.Zero) continue;
-
-                if (WorldToScreen(entity.BonePositions[i], out Vector2 screenPos, screenWidth, screenHeight))
-                {
-                    drawList.AddText(screenPos, color, i.ToString());
-                }
-            }
-        }
-
-        // l4d2External/Renderer.cs
-
-        // Reemplaza este método completo
-        // l4d2External/Renderer.cs
-
-        // Reemplaza este método completo
-        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, Vector4 typeColor, float screenWidth, float screenHeight, int maxHealth, bool drawBones, bool drawSkeleton,
-            Vector4 vNombreFill, Vector4 vNombreBorde, Vector4 vCajaFill, Vector4 vCajaBorde, Vector4 vEsqueletoFill, Vector4 vEsqueletoBorde)
-        {
-            if (entities == null) return;
-
-            uint cNombreFill = ImGui.GetColorU32(vNombreFill);
-            uint cNombreBorde = ImGui.GetColorU32(vNombreBorde);
-            uint cCajaFill = ImGui.GetColorU32(vCajaFill);
-            uint cCajaBorde = ImGui.GetColorU32(vCajaBorde);
-            uint cEsqueletoFill = ImGui.GetColorU32(vEsqueletoFill);
-            uint cEsqueletoBorde = ImGui.GetColorU32(vEsqueletoBorde);
-            uint cType = ImGui.GetColorU32(typeColor);
+            uint cBoxFill = ImGui.GetColorU32(cfg.ColorEspBoxFill);
+            uint cBoxBorder = ImGui.GetColorU32(cfg.ColorEspBoxBorder);
+            uint cSkeletonFill = ImGui.GetColorU32(cfg.ColorEspSkeletonFill);
+            uint cSkeletonBorder = ImGui.GetColorU32(cfg.ColorEspSkeletonBorder);
+            uint cNameFill = ImGui.GetColorU32(cfg.ColorEspNameFill);
+            uint cNameBorder = ImGui.GetColorU32(cfg.ColorEspNameBorder);
+            uint cHeadFill = ImGui.GetColorU32(cfg.ColorEspHeadFill);
+            uint cHeadBorder = ImGui.GetColorU32(cfg.ColorEspHeadBorder);
 
             foreach (var entity in entities)
             {
-                if (entity == null) continue;
+                if (entity?.SimpleName == null) continue;
 
                 Vector2 topLeft = Vector2.Zero, bottomRight = Vector2.Zero;
                 bool isBoxOnScreen = false;
 
-                // --- PASO 1: Calcular Bounding Box ---
-                if (ESP.IsSkeletonComplete(entity)) // Se usa la nueva función para priorizar cajas precisas
+                if (ESP.IsSkeletonComplete(entity))
                 {
                     float minX = float.MaxValue, minY = float.MaxValue;
                     float maxX = float.MinValue, maxY = float.MinValue;
 
-                    foreach (int boneIndex in ESP.ActiveBoneSets[entity.SimpleName])
+                    if (ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var boneSet))
                     {
-                        // No es necesario volver a comprobar si el hueso es cero, IsSkeletonComplete ya lo hizo.
-                        if (WorldToScreen(entity.BonePositions[boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
+                        foreach (int boneIndex in boneSet)
                         {
-                            isBoxOnScreen = true;
-                            minX = Math.Min(minX, screenPos.X);
-                            minY = Math.Min(minY, screenPos.Y);
-                            maxX = Math.Max(maxX, screenPos.X);
-                            maxY = Math.Max(maxY, screenPos.Y);
+                            if (WorldToScreen(entity.BonePositions![boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
+                            {
+                                isBoxOnScreen = true;
+                                minX = Math.Min(minX, screenPos.X);
+                                minY = Math.Min(minY, screenPos.Y);
+                                maxX = Math.Max(maxX, screenPos.X);
+                                maxY = Math.Max(maxY, screenPos.Y);
+                            }
                         }
                     }
 
@@ -157,7 +123,7 @@ namespace left4dead2Menu
                     }
                 }
 
-                if (!isBoxOnScreen) // Fallback si el esqueleto no es completo o no existe
+                if (!isBoxOnScreen)
                 {
                     if (WorldToScreen(entity.abs, out Vector2 screenHead, screenWidth, screenHeight) &&
                         WorldToScreen(entity.origin, out Vector2 screenFeet, screenWidth, screenHeight))
@@ -173,48 +139,24 @@ namespace left4dead2Menu
                     }
                 }
 
-                // --- PASO 2: Renderizar si la caja es válida y tiene un tamaño razonable ---
                 if (isBoxOnScreen)
                 {
                     float boxWidth = bottomRight.X - topLeft.X;
                     float boxHeight = bottomRight.Y - topLeft.Y;
 
-                    // <<< NUEVO FILTRO DE TAMAÑO >>>
-                    // Si la caja es más grande que la pantalla, probablemente es un glitch. Se ignora.
-                    if (boxWidth <= 0 || boxHeight <= 0 || boxWidth > screenWidth || boxHeight > screenHeight)
+                    if (boxWidth <= 0 || boxHeight <= 0 || boxWidth > screenWidth || boxHeight > screenHeight) continue;
+
+                    ESP.DrawBox(drawList, topLeft, bottomRight, cBoxFill, cBoxBorder);
+                    ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, entity.maxHealth, cfg);
+                    ESP.DrawName(drawList, entity.SimpleName, topLeft, boxWidth, cNameFill, cNameBorder);
+
+                    if (ESP.IsSkeletonComplete(entity))
                     {
-                        continue;
-                    }
+                        if (cfg.EspDrawSkeleton)
+                            ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cSkeletonFill, cSkeletonBorder, 300f);
 
-                    // --- Dibuja los elementos base del ESP (Caja, Vida, Nombre) ---
-                    ESP.DrawBox(drawList, topLeft, bottomRight, cCajaFill, cCajaBorde);
-                    ESP.DrawHealthBar(drawList, topLeft, bottomRight, entity.health, maxHealth);
-                    ESP.DrawName(drawList, entity.SimpleName, topLeft, boxWidth, cNombreFill, cNombreBorde);
-
-                    // --- PASO 3: Renderizar elementos opcionales ---
-
-                    // <<< NUEVO FILTRO DE ESQUELETO COMPLETO >>>
-                    // Solo dibuja si la opción está activa Y el esqueleto de la entidad es válido y completo.
-                    if (drawSkeleton && ESP.IsSkeletonComplete(entity))
-                    {
-                        // Se pasa un valor máximo para la longitud de los huesos (ej. 300 píxeles)
-                        ESP.DrawSkeleton(drawList, entity, this, screenWidth, screenHeight, cEsqueletoFill, cEsqueletoBorde, 300f);
-
-                        int headBoneIndex = ESP.GetHeadBoneIndex(entity.SimpleName);
-                        if (headBoneIndex != -1) // No es necesario comprobar BonePositions.Length, IsSkeletonComplete ya lo hizo
-                        {
-                            if (WorldToScreen(entity.BonePositions[headBoneIndex], out Vector2 headPos2D, screenWidth, screenHeight))
-                            {
-                                float radius = Math.Max(4, Math.Min(15, boxWidth / 12));
-                                drawList.AddCircleFilled(headPos2D, radius, cEsqueletoFill);
-                                drawList.AddCircle(headPos2D, radius, cEsqueletoBorde, 12, 2.0f);
-                            }
-                        }
-                    }
-
-                    if (drawBones)
-                    {
-                        RenderBonesForEntity(drawList, entity, cType, screenWidth, screenHeight);
+                        if (cfg.EspDrawHeadBox)
+                            ESP.DrawHeadCircle(drawList, entity, this, screenWidth, screenHeight, cHeadFill, cHeadBorder, boxWidth);
                     }
                 }
             }

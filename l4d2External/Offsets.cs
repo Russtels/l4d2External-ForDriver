@@ -28,5 +28,7 @@ namespace l4d2External
         public int Origin = 0x124;
         public int TeamNum = 0xE4;
         public int ModelName = 0x60;
+
+        public int ForceJump = 0x759E70;
     }
 }

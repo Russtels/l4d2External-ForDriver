@@ -17,6 +17,10 @@ namespace left4dead2Menu
         public const int SURVIVOR_TEAM = 2;
         public const int INFECTED_TEAM = 3;
 
+        public const int STANDING = 129;
+
+        public const int DUCKING = 131;
+
         public const int LIFE_STATE_ALIVE = 2;
     }
 }
