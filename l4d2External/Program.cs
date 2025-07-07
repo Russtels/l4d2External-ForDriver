@@ -31,6 +31,7 @@ namespace left4dead2Menu
         private BunnyHop bunnyHopController = null!;
         private Areas areaController = new Areas();
         private IntPtr clientModule, engineModule;
+        private TriggerBot triggerBotController = null!;
         private Config config;
         private bool hasPerformedMeleeShove = false;
         private readonly int specialAimbotKey = 0x06;
@@ -61,6 +62,7 @@ namespace left4dead2Menu
             renderer = new Renderer(memory, engineModule, offsets);
             bunnyHopController = new BunnyHop(memory, offsets);
             bunnyHopController.Start();
+            triggerBotController = new TriggerBot();
             guiManager = new GuiManager();
             guiManager.OnSaveConfig += () => ConfigManager.SaveConfig(config);
             guiManager.OnLoadConfig += () => config = ConfigManager.LoadConfig();
@@ -111,6 +113,28 @@ namespace left4dead2Menu
                     areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.AimbotAreaRadius, config.AimbotAreaSegments, config.AimbotAreaColor);
                 if (config.EnableAimbot && config.DrawFovCircle && !config.EnableAimbotArea)
                     renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, config.FovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
+            }
+
+            if (config.EnableTriggerBot)
+            {
+                var allEntitiesForTrigger = new List<Entity>();
+                lock (_listLock)
+                {
+                    allEntitiesForTrigger.AddRange(bossInfected);
+                    allEntitiesForTrigger.AddRange(specialInfected);
+                    allEntitiesForTrigger.AddRange(commonInfected);
+                    allEntitiesForTrigger.AddRange(survivors);
+                }
+
+                // Pasamos la configuración directamente al triggerbot
+                triggerBotController.IsEnabled = config.EnableTriggerBot;
+                triggerBotController.TriggerRadius = config.TriggerBotRadius;
+                triggerBotController.TriggerOnBosses = config.TriggerOnBosses;
+                triggerBotController.TriggerOnSpecials = config.TriggerOnSpecials;
+                triggerBotController.TriggerOnCommons = config.TriggerOnCommons;
+                triggerBotController.TriggerOnSurvivors = config.TriggerOnSurvivors;
+
+                triggerBotController.Update(renderer, screenWidth, screenHeight, allEntitiesForTrigger);
             }
 
             if (config.EnableEsp)

@@ -43,6 +43,9 @@ namespace left4dead2Menu
         public const uint MOUSEEVENTF_MOVE = 0x0001;
         public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
         public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+        public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+
 
         [StructLayout(LayoutKind.Sequential)]
         public struct KEYBDINPUT
@@ -112,6 +115,22 @@ namespace left4dead2Menu
             inputUp[0].mkhi.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
             SendInput(1, inputUp, Marshal.SizeOf(typeof(INPUT)));
         }
+
+        public static void SimulateLeftClick()
+        {
+            INPUT[] inputDown = new INPUT[1];
+            inputDown[0].type = INPUT_MOUSE;
+            inputDown[0].mkhi.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+            SendInput(1, inputDown, Marshal.SizeOf(typeof(INPUT)));
+
+            Thread.Sleep(25); // Una pequeña pausa es buena práctica
+
+            INPUT[] inputUp = new INPUT[1];
+            inputUp[0].type = INPUT_MOUSE;
+            inputUp[0].mkhi.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+            SendInput(1, inputUp, Marshal.SizeOf(typeof(INPUT)));
+        }
+
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint SendInput(uint nInputs, [In, MarshalAs(UnmanagedType.LPArray, SizeConst = 1)] INPUT[] pInputs, int cbSize);
 

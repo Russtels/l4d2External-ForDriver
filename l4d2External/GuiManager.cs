@@ -15,6 +15,7 @@ namespace left4dead2Menu
             if (ImGui.BeginTabBar("MainTabBar"))
             {
                 DrawAimbotTab(ref cfg);
+                DrawTriggerBotTab(ref cfg);
                 DrawEspTab(ref cfg);
                 DrawOthersTab(ref cfg);
                 DrawConfigTab();
@@ -85,6 +86,43 @@ namespace left4dead2Menu
                         if (ImGui.ColorEdit4("Color del Área", ref aimbotAreaColor, ImGuiColorEditFlags.NoInputs))
                             cfg.AimbotAreaColor = aimbotAreaColor;
                     }
+                }
+                ImGui.EndTabItem();
+            }
+        }
+
+        private void DrawTriggerBotTab(ref Config cfg)
+        {
+            if (ImGui.BeginTabItem("TriggerBot"))
+            {
+                bool enableTriggerBot = cfg.EnableTriggerBot;
+                if (ImGui.Checkbox("Habilitar TriggerBot", ref enableTriggerBot))
+                    cfg.EnableTriggerBot = enableTriggerBot;
+
+                if (cfg.EnableTriggerBot)
+                {
+                    ImGui.SeparatorText("Configuración General");
+                    float triggerRadius = cfg.TriggerBotRadius;
+                    if (ImGui.SliderFloat("Radio de Detección (px)", ref triggerRadius, 1.0f, 50.0f, "%.1f px"))
+                        cfg.TriggerBotRadius = triggerRadius;
+                    ImGui.Text("Este es el radio en píxeles alrededor de la mira.");
+
+                    ImGui.SeparatorText("Filtro de Entidades");
+                    bool triggerOnBosses = cfg.TriggerOnBosses;
+                    if (ImGui.Checkbox("Jefes (Tank, Witch)##Trigger", ref triggerOnBosses))
+                        cfg.TriggerOnBosses = triggerOnBosses;
+
+                    bool triggerOnSpecials = cfg.TriggerOnSpecials;
+                    if (ImGui.Checkbox("Especiales##Trigger", ref triggerOnSpecials))
+                        cfg.TriggerOnSpecials = triggerOnSpecials;
+
+                    bool triggerOnCommons = cfg.TriggerOnCommons;
+                    if (ImGui.Checkbox("Comunes##Trigger", ref triggerOnCommons))
+                        cfg.TriggerOnCommons = triggerOnCommons;
+
+                    bool triggerOnSurvivors = cfg.TriggerOnSurvivors;
+                    if (ImGui.Checkbox("Supervivientes##Trigger", ref triggerOnSurvivors))
+                        cfg.TriggerOnSurvivors = triggerOnSurvivors;
                 }
                 ImGui.EndTabItem();
             }

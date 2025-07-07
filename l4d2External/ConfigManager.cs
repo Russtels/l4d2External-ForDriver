@@ -24,6 +24,14 @@ namespace left4dead2Menu
         public int AimbotAreaSegments { get; set; } = 40;
         public Vector4 AimbotAreaColor { get; set; } = new Vector4(1, 0, 1, 0.7f);
 
+        // TriggerBot
+        public bool EnableTriggerBot { get; set; } = false;
+        public float TriggerBotRadius { get; set; } = 8.0f;
+        public bool TriggerOnBosses { get; set; } = true;
+        public bool TriggerOnSpecials { get; set; } = true;
+        public bool TriggerOnCommons { get; set; } = false;
+        public bool TriggerOnSurvivors { get; set; } = false;
+
         // ESP
         public bool EnableEsp { get; set; } = true;
         public bool EspOnBosses { get; set; } = true;
