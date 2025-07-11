@@ -106,10 +106,28 @@ namespace left4dead2Menu
 
             if (localPlayer.address != IntPtr.Zero)
             {
-                if (config.EnableAutoShove) areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.ShoveRadius, config.ShoveAreaSegments, config.ShoveAreaColor);
-                if (config.EnableAimbotArea) areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.AimbotAreaRadius, config.AimbotAreaSegments, config.AimbotAreaColor);
-                if (config.EnableAimbot && config.DrawFovCircle && !config.EnableAimbotArea) renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, config.FovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
+
+                // Calculamos el centro vertical del jugador UNA SOLA VEZ por frame.
+                // Esto es más eficiente que calcularlo para cada área.
+                Vector3 playerCenter = localPlayer.origin + new Vector3(0, 0, 40.0f); // Sube el centro 40 unidades en el eje Z (altura)
+
+                // Dibuja el área de AutoShove usando el nuevo centro
+                if (config.EnableAutoShove)
+                    areaController.DrawSphereArea(ImGui.GetBackgroundDrawList(), playerCenter, renderer, screenWidth, screenHeight, config.ShoveRadius, config.ShoveAreaSegments, config.ShoveAreaColor);
+
+                // Dibuja el área de AutoLevel usando el nuevo centro
+                if (config.EnableAutoLevel)
+                    areaController.DrawSphereArea(ImGui.GetBackgroundDrawList(), playerCenter, renderer, screenWidth, screenHeight, config.LevelRadius, config.LevelAreaSegments, config.LevelAreaColor);
+
+                // Dibuja el área del Aimbot usando el nuevo centro
+                if (config.EnableAimbotArea)
+                    areaController.DrawSphereArea(ImGui.GetBackgroundDrawList(), playerCenter, renderer, screenWidth, screenHeight, config.AimbotAreaRadius, config.AimbotAreaSegments, config.AimbotAreaColor);
+                
+                // Dibuja el círculo del FOV del Aimbot (este sigue siendo 2D)
+                if (config.EnableAimbot && config.DrawFovCircle && !config.EnableAimbotArea)
+                    renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, config.FovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
             }
+
             if (config.EnableEsp)
             {
                 renderer.RenderAll(ImGui.GetBackgroundDrawList(), screenWidth, screenHeight, commonInfected_render, specialInfected_render, bossInfected_render, survivors_render, config);
@@ -148,7 +166,7 @@ namespace left4dead2Menu
                 {
                     entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, memory.client);
                     autoShoveController.Update(commonInfected, specialInfected, config);
-                    autoLevelController.Update(commonInfected, specialInfected, bossInfected, config);
+                    autoLevelController.Update(commonInfected, specialInfected, bossInfected, config, memory, engineModule, offsets);
                 }
 
                 if (localPlayer.address != IntPtr.Zero)

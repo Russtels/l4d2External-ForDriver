@@ -17,6 +17,7 @@ namespace l4d2External
             if (NativeMethods.GetAsyncKeyState(ActivationKey) >= 0)
             {
                 return;
+
             }
 
             try
@@ -24,12 +25,8 @@ namespace l4d2External
                 // Calcula la dirección de memoria del ángulo de la cámara.
                 IntPtr viewAnglesAddress = memory.ReadPointer(engineModule, offsets.engineAngles);
                 if (viewAnglesAddress == IntPtr.Zero) return;
+                NativeMethods.SimulateLeftClick();
 
-                // =======================================================================
-                // <<< CAMBIO PRINCIPAL: ESCRITURA DIRECTA EN MEMORIA >>>
-                // Escribe el valor deseado directamente en la dirección del ángulo X (pitch).
-                // Esto resulta en un cambio instantáneo.
-                // =======================================================================
                 memory.WriteFloat(viewAnglesAddress + offsets.engineAnglesOffset, CellingAngle);
             }
             catch

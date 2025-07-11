@@ -134,5 +134,8 @@ namespace left4dead2Menu
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint SendInput(uint nInputs, [In, MarshalAs(UnmanagedType.LPArray, SizeConst = 1)] INPUT[] pInputs, int cbSize);
 
+
+        //TEST FOR SCREENSHARE BYPASS(MAYNOT WORK PROPPERTLY)
+
     }
 }

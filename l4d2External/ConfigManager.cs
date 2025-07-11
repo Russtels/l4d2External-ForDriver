@@ -81,14 +81,14 @@ namespace left4dead2Menu
         public bool ShoveOnCharger { get; set; } = false;
         // --- Auto Level ---
         public bool EnableAutoLevel { get; set; } = false;
-        public float LevelRadius { get; set; } = 100.0f;
+        public float LevelRadius { get; set; } = 90;
         public int LevelAreaSegments { get; set; } = 40;
         public Vector4 LevelAreaColor { get; set; } = new Vector4(1, 0.5f, 0, 0.7f); // Naranja por defecto
         public bool LevelOnCommons { get; set; } = true;
         public bool LevelOnBosses { get; set; } = false;
         public bool LevelOnHunter { get; set; } = true;
         public bool LevelOnSmoker { get; set; } = true;
-        public bool LevelOnBoomer { get; set; } = true;
+        public bool LevelOnBoomer { get; set; } = false;
         public bool LevelOnJockey { get; set; } = true;
         public bool LevelOnSpitter { get; set; } = true;
         public bool LevelOnCharger { get; set; } = true;

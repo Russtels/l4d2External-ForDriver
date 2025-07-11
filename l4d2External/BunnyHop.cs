@@ -89,8 +89,9 @@ namespace left4dead2Menu
 
                 // Verificamos si la barra espaciadora está presionada
                 bool spacePressed = NativeMethods.GetAsyncKeyState(NativeMethods.VK_SPACE) < 0;
+                bool controlPressed = NativeMethods.GetAsyncKeyState(NativeMethods.VK_CONTROL) < 0;
 
-                if (spacePressed)
+                if (spacePressed && controlPressed)
                 {
                     if (jumpFlag == STANDING || jumpFlag == DUCKING)
                     {
