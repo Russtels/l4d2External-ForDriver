@@ -1,10 +1,7 @@
 ﻿// l4d2External/Renderer.cs (RESTAURADO)
 using ImGuiNET;
-using System.Numerics;
-using System.Collections.Generic;
 using l4d2External;
-using System;
-using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace left4dead2Menu
@@ -72,14 +69,7 @@ namespace left4dead2Menu
             List<Entity> common, List<Entity> special, List<Entity> bosses, List<Entity> survivors,
             Config cfg)
         {
-            if (cfg.EspOnCommons) RenderESPForEntities(drawList, common, screenWidth, screenHeight, cfg);
-            if (cfg.EspOnSpecials) RenderESPForEntities(drawList, special, screenWidth, screenHeight, cfg);
-            if (cfg.EspOnBosses) RenderESPForEntities(drawList, bosses, screenWidth, screenHeight, cfg);
-            if (cfg.EspOnSurvivors) RenderESPForEntities(drawList, survivors, screenWidth, screenHeight, cfg);
-        }
-
-        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, float screenWidth, float screenHeight, Config cfg)
-        {
+            // <<< OPTIMIZACIÓN: Pre-calculamos los colores una vez por frame >>>
             uint cBoxFill = ImGui.GetColorU32(cfg.ColorEspBoxFill);
             uint cBoxBorder = ImGui.GetColorU32(cfg.ColorEspBoxBorder);
             uint cSkeletonFill = ImGui.GetColorU32(cfg.ColorEspSkeletonFill);
@@ -88,6 +78,18 @@ namespace left4dead2Menu
             uint cNameBorder = ImGui.GetColorU32(cfg.ColorEspNameBorder);
             uint cHeadFill = ImGui.GetColorU32(cfg.ColorEspHeadFill);
             uint cHeadBorder = ImGui.GetColorU32(cfg.ColorEspHeadBorder);
+
+            // Pasamos los colores ya calculados a la función de renderizado
+            if (cfg.EspOnCommons) RenderESPForEntities(drawList, common, screenWidth, screenHeight, cfg, cBoxFill, cBoxBorder, cSkeletonFill, cSkeletonBorder, cNameFill, cNameBorder, cHeadFill, cHeadBorder);
+            if (cfg.EspOnSpecials) RenderESPForEntities(drawList, special, screenWidth, screenHeight, cfg, cBoxFill, cBoxBorder, cSkeletonFill, cSkeletonBorder, cNameFill, cNameBorder, cHeadFill, cHeadBorder);
+            if (cfg.EspOnBosses) RenderESPForEntities(drawList, bosses, screenWidth, screenHeight, cfg, cBoxFill, cBoxBorder, cSkeletonFill, cSkeletonBorder, cNameFill, cNameBorder, cHeadFill, cHeadBorder);
+            if (cfg.EspOnSurvivors) RenderESPForEntities(drawList, survivors, screenWidth, screenHeight, cfg, cBoxFill, cBoxBorder, cSkeletonFill, cSkeletonBorder, cNameFill, cNameBorder, cHeadFill, cHeadBorder);
+        }
+
+        private void RenderESPForEntities(ImDrawListPtr drawList, List<Entity> entities, float screenWidth, float screenHeight, Config cfg, uint cBoxFill, uint cBoxBorder, uint cSkeletonFill, uint cSkeletonBorder, uint cNameFill, uint cNameBorder, uint cHeadFill, uint cHeadBorder)
+        {
+            // Se eliminaron las 8 líneas que declaraban los colores de nuevo.
+            // Ahora se usan directamente las variables que vienen como parámetros.
 
             foreach (var entity in entities)
             {
@@ -101,11 +103,12 @@ namespace left4dead2Menu
                     float minX = float.MaxValue, minY = float.MaxValue;
                     float maxX = float.MinValue, maxY = float.MinValue;
 
-                    if (ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var boneSet))
+                    // *** SOLUCIÓN AVISO DE NULIDAD ***
+                    if (entity.BonePositions != null && ESP.ActiveBoneSets.TryGetValue(entity.SimpleName, out var boneSet))
                     {
                         foreach (int boneIndex in boneSet)
                         {
-                            if (WorldToScreen(entity.BonePositions![boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
+                            if (WorldToScreen(entity.BonePositions[boneIndex], out Vector2 screenPos, screenWidth, screenHeight))
                             {
                                 isBoxOnScreen = true;
                                 minX = Math.Min(minX, screenPos.X);

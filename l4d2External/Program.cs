@@ -1,13 +1,9 @@
-﻿// l4d2External/Program.cs (RESTAURADO)
+﻿// l4d2External/Program.cs
 using ClickableTransparentOverlay;
 using ImGuiNET;
 using l4d2External;
-using System.Text;
 using System.Numerics;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System;
+using System.Text;
 
 namespace left4dead2Menu
 {
@@ -17,13 +13,22 @@ namespace left4dead2Menu
         private static readonly object _listLock = new object();
         private readonly Offsets offsets = new Offsets();
 
-        // <<< VUELVEN LAS LISTAS SEPARADAS >>>
+        // Listas base
         private readonly Entity localPlayer = new Entity();
         private readonly List<Entity> commonInfected = new List<Entity>();
         private readonly List<Entity> specialInfected = new List<Entity>();
         private readonly List<Entity> bossInfected = new List<Entity>();
         private readonly List<Entity> survivors = new List<Entity>();
 
+        // Listas para renderizado
+        private readonly List<Entity> commonInfected_render = new List<Entity>();
+        private readonly List<Entity> specialInfected_render = new List<Entity>();
+        private readonly List<Entity> bossInfected_render = new List<Entity>();
+        private readonly List<Entity> survivors_render = new List<Entity>();
+        private readonly List<Entity> aimTargets_render = new List<Entity>();
+        private readonly List<Entity> meleeTargets = new List<Entity>();
+
+        // Managers y Controladores
         private EntityManager entityManager = null!;
         private AimbotController aimbotController = null!;
         private GuiManager guiManager = null!;
@@ -33,22 +38,16 @@ namespace left4dead2Menu
         private IntPtr clientModule, engineModule;
         private TriggerBot triggerBotController = null!;
         private Config config;
-        private bool hasPerformedMeleeShove = false;
         private readonly int specialAimbotKey = 0x06;
+        private AutoCelling autoCellingController = null!;
+        private AutoShove autoShoveController = null!;
+        private AutoLevel autoLevelController = null!;
+
 
         public Program()
         {
             config = ConfigManager.LoadConfig();
-
-            try
-            {
-                memory = new GameMemory("left4dead2");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Fallo en inicialización de Program: {ex.Message}");
-                Environment.Exit(1);
-            }
+            try { memory = new GameMemory("left4dead2"); } catch (Exception ex) { Console.WriteLine($"Fallo en inicialización: {ex.Message}"); Environment.Exit(1); }
         }
 
         private void InitializeLogicModules()
@@ -56,13 +55,15 @@ namespace left4dead2Menu
             clientModule = memory.client;
             engineModule = memory.engine;
             if (clientModule == IntPtr.Zero || engineModule == IntPtr.Zero) return;
-
             entityManager = new EntityManager(memory, offsets, Encoding.ASCII);
             aimbotController = new AimbotController();
             renderer = new Renderer(memory, engineModule, offsets);
-            bunnyHopController = new BunnyHop(memory, offsets);
+            bunnyHopController = new BunnyHop(memory, offsets); // Esta línea es la que probablemente faltaba
             bunnyHopController.Start();
             triggerBotController = new TriggerBot();
+            autoShoveController = new AutoShove();
+            autoCellingController = new AutoCelling();
+            autoLevelController = new AutoLevel();
             guiManager = new GuiManager();
             guiManager.OnSaveConfig += () => ConfigManager.SaveConfig(config);
             guiManager.OnLoadConfig += () => config = ConfigManager.LoadConfig();
@@ -75,58 +76,57 @@ namespace left4dead2Menu
             Vector2 centerScreen = new Vector2(screenWidth / 2, screenHeight / 2);
 
             ImGui.Begin("l4d2 external by Russ");
-            if (guiManager != null)
-            {
-                guiManager.DrawMenu(ref config);
-            }
+            if (guiManager != null) { guiManager.DrawMenu(ref config); }
             ImGui.End();
 
             if (renderer == null) return;
-
             renderer.UpdateViewMatrix();
+
+            lock (_listLock)
+            {
+                commonInfected_render.Clear(); commonInfected_render.AddRange(commonInfected);
+                specialInfected_render.Clear(); specialInfected_render.AddRange(specialInfected);
+                bossInfected_render.Clear(); bossInfected_render.AddRange(bossInfected);
+                survivors_render.Clear(); survivors_render.AddRange(survivors);
+            }
 
             if (config.EnableAimbot && NativeMethods.GetAsyncKeyState(specialAimbotKey) < 0)
             {
-                var aimTargets = new List<Entity>();
-                lock (_listLock)
+                aimTargets_render.Clear();
+                if (config.AimbotOnBosses) aimTargets_render.AddRange(bossInfected_render);
+                if (config.AimbotOnSpecials) aimTargets_render.AddRange(specialInfected_render);
+                if (config.AimbotOnCommons) aimTargets_render.AddRange(commonInfected_render);
+                if (config.AimbotOnSurvivors) aimTargets_render.AddRange(survivors_render);
+                if (aimTargets_render.Any())
                 {
-                    if (config.AimbotOnBosses) aimTargets.AddRange(bossInfected);
-                    if (config.AimbotOnSpecials) aimTargets.AddRange(specialInfected);
-                    if (config.AimbotOnCommons) aimTargets.AddRange(commonInfected);
-                    if (config.AimbotOnSurvivors) aimTargets.AddRange(survivors);
-                }
-                if (aimTargets.Count > 0)
-                {
-                    var bestTarget = aimbotController.FindBestTarget(localPlayer, aimTargets, config.EnableAimbotArea, config.AimbotAreaRadius, config.FovCircleVisualRadius, renderer, screenWidth, screenHeight);
-                    if (bestTarget != null)
-                    {
-                        aimbotController.ExecuteMouseAimbot(bestTarget, config.AimbotTargetSelection, config.AimbotSmoothness, renderer, screenWidth, screenHeight);
-                    }
+                    var bestTarget = aimbotController.FindBestTarget(localPlayer, aimTargets_render, config.EnableAimbotArea, config.AimbotAreaRadius, config.FovCircleVisualRadius, renderer, screenWidth, screenHeight);
+                    if (bestTarget != null) { aimbotController.ExecuteMouseAimbot(bestTarget, config.AimbotTargetSelection, config.AimbotSmoothness, renderer, screenWidth, screenHeight); }
                 }
             }
 
             if (localPlayer.address != IntPtr.Zero)
             {
-                if (config.EnableMeleeArea)
-                    areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.MeleeAreaRadius, config.MeleeAreaSegments, config.MeleeAreaColor);
-                if (config.EnableAimbotArea)
-                    areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.AimbotAreaRadius, config.AimbotAreaSegments, config.AimbotAreaColor);
-                if (config.EnableAimbot && config.DrawFovCircle && !config.EnableAimbotArea)
-                    renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, config.FovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
+                if (config.EnableAutoShove) areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.ShoveRadius, config.ShoveAreaSegments, config.ShoveAreaColor);
+                if (config.EnableAimbotArea) areaController.DrawCircleArea(ImGui.GetBackgroundDrawList(), localPlayer.origin, renderer, screenWidth, screenHeight, config.AimbotAreaRadius, config.AimbotAreaSegments, config.AimbotAreaColor);
+                if (config.EnableAimbot && config.DrawFovCircle && !config.EnableAimbotArea) renderer.DrawFovCircle(ImGui.GetBackgroundDrawList(), centerScreen, config.FovCircleVisualRadius, new Vector4(1, 1, 1, 0.5f));
+            }
+            if (config.EnableEsp)
+            {
+                renderer.RenderAll(ImGui.GetBackgroundDrawList(), screenWidth, screenHeight, commonInfected_render, specialInfected_render, bossInfected_render, survivors_render, config);
             }
 
             if (config.EnableTriggerBot)
             {
-                var allEntitiesForTrigger = new List<Entity>();
+                var triggerTargets = new List<Entity>();
                 lock (_listLock)
                 {
-                    allEntitiesForTrigger.AddRange(bossInfected);
-                    allEntitiesForTrigger.AddRange(specialInfected);
-                    allEntitiesForTrigger.AddRange(commonInfected);
-                    allEntitiesForTrigger.AddRange(survivors);
+                    triggerTargets.AddRange(commonInfected);
+                    triggerTargets.AddRange(specialInfected);
+                    triggerTargets.AddRange(bossInfected);
+                    triggerTargets.AddRange(survivors);
                 }
 
-                // Pasamos la configuración directamente al triggerbot
+                // Actualizamos las propiedades del TriggerBot desde la config
                 triggerBotController.IsEnabled = config.EnableTriggerBot;
                 triggerBotController.TriggerRadius = config.TriggerBotRadius;
                 triggerBotController.TriggerOnBosses = config.TriggerOnBosses;
@@ -134,26 +134,7 @@ namespace left4dead2Menu
                 triggerBotController.TriggerOnCommons = config.TriggerOnCommons;
                 triggerBotController.TriggerOnSurvivors = config.TriggerOnSurvivors;
 
-                triggerBotController.Update(renderer, screenWidth, screenHeight, allEntitiesForTrigger);
-            }
-
-            if (config.EnableEsp)
-            {
-                List<Entity> commonSnapshot, specialSnapshot, bossSnapshot, survivorSnapshot;
-                lock (_listLock)
-                {
-                    commonSnapshot = new List<Entity>(commonInfected);
-                    specialSnapshot = new List<Entity>(specialInfected);
-                    bossSnapshot = new List<Entity>(bossInfected);
-                    survivorSnapshot = new List<Entity>(survivors);
-                }
-
-                // <<< LLAMADA AL RENDERER RESTAURADA >>>
-                renderer.RenderAll(
-                    ImGui.GetBackgroundDrawList(), screenWidth, screenHeight,
-                    commonSnapshot, specialSnapshot, bossSnapshot, survivorSnapshot,
-                    config
-                );
+                triggerBotController.Update(renderer, screenWidth, screenHeight, triggerTargets);
             }
         }
 
@@ -161,13 +142,13 @@ namespace left4dead2Menu
         {
             InitializeLogicModules();
             if (entityManager == null) return;
-
             while (true)
             {
                 lock (_listLock)
                 {
-                    // <<< LLAMADA AL ENTITYMANAGER RESTAURADA >>>
-                    entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, clientModule);
+                    entityManager.ReloadEntities(localPlayer, commonInfected, specialInfected, bossInfected, survivors, memory.client);
+                    autoShoveController.Update(commonInfected, specialInfected, config);
+                    autoLevelController.Update(commonInfected, specialInfected, bossInfected, config);
                 }
 
                 if (localPlayer.address != IntPtr.Zero)
@@ -175,33 +156,10 @@ namespace left4dead2Menu
                     bunnyHopController.IsEnabled = config.EnableBunnyHop;
                     bunnyHopController.ClientModule = clientModule;
                     bunnyHopController.LocalPlayer = localPlayer;
-                    if (config.EnableMeleeArea)
-                    {
-                        var meleeTargets = new List<Entity>();
-                        lock (_listLock)
-                        {
-                            if (config.MeleeOnCommons) meleeTargets.AddRange(commonInfected);
 
-                            var specialMeleeTargets = specialInfected.Where(s =>
-                                (config.MeleeOnHunter && s.SimpleName == "Hunter") ||
-                                (config.MeleeOnSmoker && s.SimpleName == "Smoker") ||
-                                (config.MeleeOnBoomer && s.SimpleName == "Boomer") ||
-                                (config.MeleeOnJockey && s.SimpleName == "Jockey") ||
-                                (config.MeleeOnSpitter && s.SimpleName == "Spitter") ||
-                                (config.MeleeOnCharger && s.SimpleName == "Charger")
-                            ).ToList();
-                            meleeTargets.AddRange(specialMeleeTargets);
-                        }
-                        bool enemyInMeleeRange = meleeTargets.Any(e => e.health > 0 && e.magnitude <= config.MeleeAreaRadius);
-                        if (enemyInMeleeRange && !hasPerformedMeleeShove)
-                        {
-                            NativeMethods.SimulateRightClick();
-                            hasPerformedMeleeShove = true;
-                        }
-                        else if (!enemyInMeleeRange)
-                        {
-                            hasPerformedMeleeShove = false;
-                        }
+                    if (config.EnableAutoCelling && NativeMethods.GetAsyncKeyState(config.AutoCellingKey) < 0)
+                    {
+                        autoCellingController.Update(memory, engineModule, offsets);
                     }
                 }
                 Thread.Sleep(5);
@@ -221,9 +179,7 @@ namespace left4dead2Menu
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"\n--- ERROR CRÍTICO ---\n");
-                Console.WriteLine(ex.ToString());
-                Console.WriteLine("\nPresiona cualquier tecla para salir...");
+                Console.WriteLine($"\n--- ERROR CRÍTICO ---\n{ex}");
                 Console.ReadKey();
             }
         }

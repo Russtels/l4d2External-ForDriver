@@ -7,44 +7,51 @@ namespace left4dead2Menu
 {
     internal class AutoShove
     {
-        private bool hasShoved = false;
+        private readonly List<Entity> meleeTargets = new List<Entity>();
+        private bool hasPerformedShove = false;
 
-        public void Update(List<Entity> potentialTargets, Config config)
+        public void Update(List<Entity> commonInfected, List<Entity> specialInfected, Config config)
         {
-            if (!config.AutoShove_IsEnabled)
+            if (!config.EnableAutoShove)
             {
-                hasShoved = false;
                 return;
             }
 
-            var validTargets = potentialTargets.Where(e =>
-                e.health > 0 && e.magnitude <= config.AutoShove_Radius && IsValidTargetType(e, config)
+            meleeTargets.Clear();
+
+            if (config.ShoveOnCommons)
+            {
+                meleeTargets.AddRange(commonInfected);
+            }
+
+            var specialMeleeTargets = specialInfected.Where(s =>
+                (config.ShoveOnHunter && s.SimpleName == "Hunter") ||
+                (config.ShoveOnSmoker && s.SimpleName == "Smoker") ||
+                (config.ShoveOnBoomer && s.SimpleName == "Boomer") ||
+                (config.ShoveOnJockey && s.SimpleName == "Jockey") ||
+                (config.ShoveOnSpitter && s.SimpleName == "Spitter") ||
+                (config.ShoveOnCharger && s.SimpleName == "Charger")
             ).ToList();
+            meleeTargets.AddRange(specialMeleeTargets);
 
-            if (validTargets.Any())
-            {
-                if (!hasShoved)
-                {
-                    NativeMethods.SimulateRightClick();
-                    hasShoved = true;
-                }
-            }
-            else
-            {
-                hasShoved = false;
-            }
-        }
+            // =======================================================================
+            // <<< FILTRO DEL AIMBOT IMPLEMENTADO AQUÍ >>>
+            // Ahora se usa ESP.IsSkeletonComplete() para una máxima consistencia.
+            // =======================================================================
+            bool enemyInMeleeRange = meleeTargets.Any(e =>
+                e.magnitude <= config.ShoveRadius &&
+                ESP.IsSkeletonComplete(e)
+            );
 
-        private bool IsValidTargetType(Entity entity, Config config)
-        {
-            if (entity.SimpleName == null) return false;
-            return (config.AutoShove_OnCommons && entity.SimpleName == "Común") ||
-                   (config.AutoShove_OnHunter && entity.SimpleName == "Hunter") ||
-                   (config.AutoShove_OnSmoker && entity.SimpleName == "Smoker") ||
-                   (config.AutoShove_OnBoomer && entity.SimpleName == "Boomer") ||
-                   (config.AutoShove_OnJockey && entity.SimpleName == "Jockey") ||
-                   (config.AutoShove_OnSpitter && entity.SimpleName == "Spitter") ||
-                   (config.AutoShove_OnCharger && entity.SimpleName == "Charger");
+            if (enemyInMeleeRange && !hasPerformedShove)
+            {
+                NativeMethods.SimulateRightClick();
+                hasPerformedShove = true;
+            }
+            else if (!enemyInMeleeRange)
+            {
+                hasPerformedShove = false;
+            }
         }
     }
 }

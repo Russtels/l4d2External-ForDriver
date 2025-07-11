@@ -9,7 +9,15 @@ namespace left4dead2Menu
 {
     public class Config
     {
+        //KEYS
+        public int AimbotKey { get; set; } = 0x06;
+        public int TriggerBotKey { get; set; } = 0x05;
+        public int AutoCellingKey { get; set; } = 0x04;
+        public int AutoShoveKey { get; set; } = 0x02;
+
         // Aimbot
+
+        public bool EnableAutoCelling { get; set; } = false;
         public bool EnableAimbot { get; set; } = true;
         public float AimbotSmoothness { get; set; } = 0.1f;
         public AimbotTarget AimbotTargetSelection { get; set; } = AimbotTarget.Head;
@@ -56,19 +64,34 @@ namespace left4dead2Menu
         public Vector4 ColorHealthBarEmpty { get; set; } = new Vector4(1, 0, 0, 1);    // Rojo
         public Vector4 ColorHealthBarBackground { get; set; } = new Vector4(0, 0, 0, 0.7f); // Negro semitransparente
 
-        // Others
+        // BunnyHop
         public bool EnableBunnyHop { get; set; } = true;
-        public bool EnableMeleeArea { get; set; } = true;
-        public float MeleeAreaRadius { get; set; } = 80.0f;
-        public int MeleeAreaSegments { get; set; } = 40;
-        public Vector4 MeleeAreaColor { get; set; } = new Vector4(0, 1, 1, 0.7f);
-        public bool MeleeOnCommons { get; set; } = true;
-        public bool MeleeOnHunter { get; set; } = true;
-        public bool MeleeOnSmoker { get; set; } = true;
-        public bool MeleeOnBoomer { get; set; } = true;
-        public bool MeleeOnJockey { get; set; } = true;
-        public bool MeleeOnSpitter { get; set; } = false;
-        public bool MeleeOnCharger { get; set; } = false;
+
+        //AutoShove
+        public bool EnableAutoShove { get; set; } = true;
+        public float ShoveRadius { get; set; } = 80.0f;
+        public int ShoveAreaSegments { get; set; } = 40;
+        public Vector4 ShoveAreaColor { get; set; } = new Vector4(0, 1, 1, 0.7f);
+        public bool ShoveOnCommons { get; set; } = true;
+        public bool ShoveOnHunter { get; set; } = true;
+        public bool ShoveOnSmoker { get; set; } = true;
+        public bool ShoveOnBoomer { get; set; } = true;
+        public bool ShoveOnJockey { get; set; } = true;
+        public bool ShoveOnSpitter { get; set; } = false;
+        public bool ShoveOnCharger { get; set; } = false;
+        // --- Auto Level ---
+        public bool EnableAutoLevel { get; set; } = false;
+        public float LevelRadius { get; set; } = 100.0f;
+        public int LevelAreaSegments { get; set; } = 40;
+        public Vector4 LevelAreaColor { get; set; } = new Vector4(1, 0.5f, 0, 0.7f); // Naranja por defecto
+        public bool LevelOnCommons { get; set; } = true;
+        public bool LevelOnBosses { get; set; } = false;
+        public bool LevelOnHunter { get; set; } = true;
+        public bool LevelOnSmoker { get; set; } = true;
+        public bool LevelOnBoomer { get; set; } = true;
+        public bool LevelOnJockey { get; set; } = true;
+        public bool LevelOnSpitter { get; set; } = true;
+        public bool LevelOnCharger { get; set; } = true;
     }
 
     // El resto de la clase ConfigManager y el convertidor se mantienen igual

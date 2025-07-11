@@ -5,46 +5,54 @@ using System.Linq;
 
 namespace left4dead2Menu
 {
-    // Handles the auto-leveling logic for targeting and attacking entities automatically.
     internal class AutoLevel
     {
-        /// <summary>
-        /// Updates the auto-level logic, finds the best target, and executes the aimbot and click if enabled.
-        /// </summary>
-        /// <param name="localPlayer">The local player entity.</param>
-        /// <param name="potentialTargets">List of potential target entities.</param>
-        /// <param name="aimbotController">Aimbot controller instance.</param>
-        /// <param name="renderer">Renderer instance for drawing.</param>
-        /// <param name="screenWidth">Screen width in pixels.</param>
-        /// <param name="screenHeight">Screen height in pixels.</param>
-        /// <param name="config">Configuration settings.</param>
-        public void Update(
-            Entity localPlayer,
-            List<Entity> potentialTargets,
-            AimbotController aimbotController,
-            Renderer renderer,
-            float screenWidth,
-            float screenHeight,
-            Config config)
+        private readonly List<Entity> levelTargets = new List<Entity>();
+
+        public void Update(List<Entity> commonInfected, List<Entity> specialInfected, List<Entity> bossInfected, Config config)
         {
-            if (!config.AutoLevel_IsEnabled || localPlayer.address == System.IntPtr.Zero) return;
-
-            var bestTarget = potentialTargets
-                .Where(e => e.health > 0 && e.magnitude <= config.AutoLevel_Radius && IsValidTargetType(e, config))
-                .OrderBy(e => e.magnitude)
-                .FirstOrDefault();
-
-            if (bestTarget != null)
+            if (!config.EnableAutoLevel)
             {
-                aimbotController.ExecuteMouseAimbot(bestTarget, AimbotTarget.Head, 1.0f, renderer, screenWidth, screenHeight);
+                return;
+            }
+
+            levelTargets.Clear();
+
+            // =========================================================
+            // <<< LÓGICA DE FILTRADO DETALLADA IMPLEMENTADA >>>
+            // =========================================================
+            if (config.LevelOnCommons)
+            {
+                levelTargets.AddRange(commonInfected);
+            }
+
+            if (config.LevelOnBosses)
+            {
+                levelTargets.AddRange(bossInfected);
+            }
+
+            // Filtra los especiales uno por uno según la configuración.
+            var specialLevelTargets = specialInfected.Where(s =>
+                (config.LevelOnHunter && s.SimpleName == "Hunter") ||
+                (config.LevelOnSmoker && s.SimpleName == "Smoker") ||
+                (config.LevelOnBoomer && s.SimpleName == "Boomer") ||
+                (config.LevelOnJockey && s.SimpleName == "Jockey") ||
+                (config.LevelOnSpitter && s.SimpleName == "Spitter") ||
+                (config.LevelOnCharger && s.SimpleName == "Charger")
+            ).ToList();
+            levelTargets.AddRange(specialLevelTargets);
+
+            // Comprueba si algún objetivo válido está dentro del radio.
+            bool enemyInLevelArea = levelTargets.Any(e =>
+                e.magnitude <= config.LevelRadius &&
+                e.BonePositions != null &&
+                e.BonePositions.Length > 0
+            );
+
+            if (enemyInLevelArea)
+            {
                 NativeMethods.SimulateLeftClick();
             }
-        }
-
-        private bool IsValidTargetType(Entity entity, Config config)
-        {
-            if (entity.SimpleName == null) return false;
-            return (config.AutoLevel_OnCommons && entity.SimpleName == "Común");
         }
     }
 }

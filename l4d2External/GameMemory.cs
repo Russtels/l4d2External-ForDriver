@@ -85,7 +85,14 @@ namespace left4dead2Menu
         {
             return driver.ReadMemory<Vector3>(address + offset);
         }
-
+        public float ReadFloat(IntPtr address)
+        {
+            return driver.ReadMemory<float>(address);
+        }
+        public void WriteFloat(IntPtr address, float value)
+        {
+            driver.WriteMemory(address, value);
+        }
         public int ReadInt(IntPtr address, int offset)
         {
             return driver.ReadMemory<int>(address + offset);
